@@ -13,7 +13,7 @@
     {
       "root": "results",
       "files": {
-        "define_columns": "subtargets.pkl",
+        "defined_columns": "subtargets.pkl",
         "neurons": "neurons.pkl",
         "tgt_evaluations": "subtarget_quality.pkl",
         "connection_matrices": "con_mats/con_mats_original.pkl",
@@ -28,7 +28,7 @@
       "base_target": "Mosaic"
     },
     "extract_neurons": {
-      "parameters": [
+      "properties": [
         "x",
         "y",
         "z",

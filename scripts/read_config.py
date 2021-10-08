@@ -27,6 +27,8 @@ def adjust_paths(dict_paths):
 def read(fn):
     with open(fn, "r") as fid:
         cfg = json.load(fid)
+    assert "paths" in cfg, "Configuration file must specify 'paths' to input/output files!"
+    assert "parameters" in cfg, "Configuration file must specify 'parameters' for pipeline steps!"
     paths = {}
     for entry in cfg["paths"]:
         paths.update(adjust_paths(entry))
