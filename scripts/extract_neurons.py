@@ -15,7 +15,7 @@ def run_extractions(circuits, subtargets, cfg):
         raise RuntimeError("defined subtargets at {0} not existing. Run subtarget definition step first!".format(subtargets))
 
     circuits = dict([(k, bluepy.Circuit(v)) for k, v in circuits.items()])
-    subtargets = pandas.read_hdf(subtargets)
+    subtargets = pandas.read_hdf(subtargets, key="dataframe")
 
     circuit_frame = subtargets.index.to_frame().apply(lambda x: circuits[x["circuit"]], axis=1)
 

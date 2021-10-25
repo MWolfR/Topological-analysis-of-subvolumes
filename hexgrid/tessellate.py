@@ -35,7 +35,9 @@ def Array2D(x, y):
 
 def Frame2D(**kwargs):
     """..."""
-    return pd.DataFrame(kwargs)
+    index = kwargs.pop("index", None)
+    dtype = kwargs.pop("dtype", float)
+    return pd.DataFrame(kwargs, index=index, dtype=dtype)
 
 
 def to_cartesian_dataframe(positions):
@@ -53,7 +55,7 @@ def convert_cartesian(arg0, arg1=None):
     """..."""
     if isinstance(arg0, pd.DataFrame):
         assert arg1 is None
-        return to_cartesian_dataframe(arg9)
+        return to_cartesian_dataframe(arg0)
 
     try:
         rho, phi = arg0
@@ -81,7 +83,7 @@ def convert_polar(arg0, arg1=None):
     """..."""
     if isinstance(arg0, pd.DataFrame):
         assert arg1 is None
-        to_polar_dataframe(arg0)
+        return to_polar_dataframe(arg0)
 
     try:
         x, y = arg0
@@ -361,28 +363,168 @@ class TriTille:
         imax = int(hmax / (self._ratio[0] * self._side / 2.))
         vi_outside_grid = [i for i in range(-imax, imax)
                           if not draw_vaxis(i, **kwargs.get("draw_vaxis", {}))]
-        LOG.warning("Lines along the v-axis that didn't fit the window: %s / %s",
+        LOG.info("Lines along the v-axis that didn't fit the window: %s / %s",
                     len(vi_outside_grid), (2 * imax))
-        LOG.warning("\t: %s", vi_outside_grid)
+        LOG.info("\t: %s", vi_outside_grid)
 
         ryi_outside_grid = [i for i in range(-imax, imax)
                             if not draw_relyaxis(i, **kwargs.get("draw_relyaxis", {}))]
-        LOG.warning("Lines along the TriTille's y-axis that didn't fit the window: %s / %s",
+        LOG.info("Lines along the TriTille's y-axis that didn't fit the window: %s / %s",
                     len(ryi_outside_grid), (2 * imax))
-        LOG.warning("\t: %s", ryi_outside_grid)
+        LOG.info("\t: %s", ryi_outside_grid)
 
         wmax = width + self._origin[0] + 1
         jmax = int(wmax / self._side)
         j_outside_grid = [j for j in range(-jmax, jmax)
                           if not draw_uaxis(j, **kwargs.get("draw_uaxis", {}))]
 
-        LOG.warning("Lines along the u-axis that didn't fit the window: %s / %s",
+        LOG.info("Lines along the u-axis that didn't fit the window: %s / %s",
                     len(j_outside_grid), 2 * jmax)
-        LOG.warning("\t: %s", j_outside_grid)
+        LOG.info("\t: %s", j_outside_grid)
 
         rxj_outside_grid = [j for j in range(-jmax, jmax)
                             if not draw_relxaxis(j, **kwargs.get("draw_relxaxis", {}))]
-        LOG.warning("Lines along the TriTille's x-axis that didn't fit the window: %s / %s",
+        LOG.info("Lines along the TriTille's x-axis that didn't fit the window: %s / %s",
                     len(rxj_outside_grid), (2 * jmax))
-        LOG.warning("\t: %s", rxj_outside_grid)
+        LOG.info("\t: %s", rxj_outside_grid)
         return graphic
+
+    def bin_trinagularly(self, xys):
+        """..."""
+        uvs = self.transform(xys)
+        scaled_u = np.array(np.floor(uvs.u.values / self._side), dtype=int)
+        scaled_v = np.array(np.floor(uvs.v.values / self._side), dtype=int)
+        return Frame2D(i=scaled_u, j=scaled_v)
+
+    def map_to_hexagonal(self, triangular_bins, using_scaled_x):
+        """..."""
+        ijs = triangular_bins; sx = using_scaled_x
+        N = ijs.shape[0]
+        assert len(sx) == N
+
+        n = (ijs["j"] -  ijs["i"]).mod(3)
+
+        is_mod0 = n == 0
+        is_mod1 = n == 1
+        is_mod2 = n == 2
+
+        i_correction_0 = np.zeros(N)
+        i_correction_0[sx < 0.5] = 0
+        i_correction_0[sx >= 0.5] = 1
+        i_correction_0[~is_mod0] = 0
+
+        j_correction_0 = np.zeros(N)
+        j_correction_0[sx < 0.5] = 0
+        j_correction_0[sx >= 0.5] = 1
+        j_correction_0[~is_mod0] = 0
+
+        correction_0 = Frame2D(i=i_correction_0, j=j_correction_0,
+                               index=ijs.index, dtype=int)
+
+        i_correction_1 = np.zeros(N)
+        i_correction_1[is_mod1] = 1
+        correction_1 = Frame2D(i=i_correction_1, j=0,
+                               index=ijs.index, dtype=int)
+
+        j_correction_2 = np.zeros(N)
+        j_correction_2[is_mod2] = 1
+        correction_2 = Frame2D(i=0, j=j_correction_2,
+                               index=ijs.index, dtype=int)
+
+        return ijs + correction_0 + correction_1 + correction_2
+
+    def bin_hexagonally(self, xys, use_columns_row_indexing=False):
+        """..."""
+        rxys = self.relative(xys)
+        ijs = self.bin_trinagularly(xys)
+
+        x = rxys["x"].values
+        dx = self._ratio[0] * self._side
+        x0 = (ijs.i + ijs.j).values + dx / 2
+
+        hijs = self.map_to_hexagonal(triangular_bins = ijs,
+                                     using_scaled_x= (x - x0) / dx)
+
+        if not use_columns_row_indexing:
+            return hijs
+        return self.index_with_column_row(hijs)
+
+    def index_with_column_row(self, hijs):
+        """..."""
+        d = (hijs["j"] - hijs["i"])
+        n = d.mod(3)
+        assert (n == 0).all()
+
+        r = pd.Series(d/3, dtype=int)
+        odd = r.mod(2) == 1
+
+        cval = hijs["j"].values - 3 * r / 2
+        cval[odd] = cval - 0.5
+        c = pd.Series(cval, dtype=int)
+
+        return pd.DataFrame({"col": c, "row": r}, dtype=int, index=hijs.index)
+
+    def locate(self, bins):
+        """Un bin the bins: (i, j) -> (x, y)
+        """
+        uvs = self._side * bins.rename(columns={"i": "u", "j": "v"})
+        xys = self.reverse_transform(uvs)
+        xys.index = pd.MultiIndex.from_frame(bins)
+        return self.untranslate(self.unrotate(xys))
+
+    def annotate(self, gridpoints, using_column_row=False):
+        """Annotate a gridpoints (x, y) in a dataframe indexed by their indices (i, j)
+        on a triangular grid.
+        """
+        gridindex = gridpoints.index.to_frame()
+
+        if not using_column_row:
+            return gridindex.apply(lambda row: f"I{row.i};J{row.j}", axis=1)
+
+        gridcolrows = self.index_with_column_row(gridindex)
+
+        return gridcolrows.apply(lambda row: f"R{row.row};C{row.col}", axis=1)
+
+
+    def locate_grid(self, bins):
+        """..."""
+        return self.locate(bins.drop_duplicates().reset_index(drop=True))
+
+    def plot_hextiles(self, positions, bins=None, graphic=None,
+                      annotate=None):
+        """
+        TODO: Annotate trigrid.
+        """
+        assert annotate in (None, "hexgrid", "colrow")
+
+        tiles = (self.binhex(positions, use_columns_row_indexing=False)
+                 if bins is None else bins)
+
+        if graphic is None:
+            figure = plt.figure(figsize=(12, 12))
+            axes = figure.add_subplot(111, aspect=1.)
+        else:
+            figure, axes = graphic
+
+        cr_tiles = self.index_as_column_row(tiles)
+        even_col = np.array(cr_tiles.col.mod(2) == 0, dtype=bool)
+        even_row = np.array(cr_tiles.row.mod(2) == 0, dtype=bool)
+
+        palette = np.array(["red", "green", "blue", "orange"])
+        colors_index = 2 * even_col + even_row
+        colors = palette[colors_index]
+
+        plt.scatter(positions["x"], positions["y"], c=colors, s=20, marker="o")
+
+        grid = self.locate_grid(tiles)
+
+        plt.scatter(grid["x"], grid["y"], c="red", s=80)
+
+        if annotate:
+
+            annotate = self.annotate(grid)
+            for row in grid.assign(annotation=annotate).itertuples():
+                axes.annotate(row.annotation, (row.x - 6, row.y + 5),
+                              fontsize=20)
+
+        return (figure, axes)
