@@ -16,16 +16,13 @@ from bluepy import Cell, Circuit
 from bluepy.exceptions import BluePyError
 
 import read_config
+from write_results import write, default_hdf
 from hexgrid import SubtargetConfig, define_subtargets
 
 
 LOG = logging.getLogger("Generate flatmap subtargets")
 LOG.setLevel(os.environ.get("LOGLEVEL", "INFO"))
 
-def write_results(extracted, path_output):
-    """Expecting the path to output be that to a `*.h5`."""
-    extracted.to_hdf(path_output, key="datarame", mode="w")
-    return path_output
 
 def main(args):
     LOG.info("Get subtargets for %s", args)
@@ -45,11 +42,11 @@ def main(args):
     else:
         sample = None
 
-    subtargets = define_subtargets(config, sample_frac=sample, format=args.format)
+    subtargets = define_subtargets(config, sample_frac=sample,
+                                   format=args.format if args.format else config.fmt_dataframe)
 
     LOG.info("Write result to %s", config.output)
-    write_results(subtargets, config.output)
-    return config.output
+    return write(subtargets, to_path=(config.output or default_hdf("subtargets")))
 
 
 if __name__ == "__main__":
@@ -62,7 +59,7 @@ if __name__ == "__main__":
 
     parser.add_argument("-s", "--sample", help="A float to sample with", default=None)
 
-    parser.add_argument("-f", "--format", help="Format for annotating the columns.", default="wide")
+    parser.add_argument("-f", "--format", help="Format for annotating the columns.", default=None)
 
     args = parser.parse_args()
 

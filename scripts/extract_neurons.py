@@ -1,8 +1,9 @@
 import importlib
 import pandas
 import bluepy
-from os import path
+import os
 
+from write_results import read as read_results, write, default_hdf
 
 read_cfg = importlib.import_module("read_config")
 
@@ -11,7 +12,7 @@ def run_extractions(circuits, subtargets, cfg):
     params = cfg.get("properties", [])
     if len(params) == 0:
         print("Warning: No properties to extract given. This step will do nothing!")
-    if not path.isfile(subtargets):
+    if not os.path.isfile(subtargets):
         raise RuntimeError("defined subtargets at {0} not existing. Run subtarget definition step first!".format(subtargets))
 
     circuits = dict([(k, bluepy.Circuit(v)) for k, v in circuits.items()])
@@ -30,8 +31,9 @@ def run_extractions(circuits, subtargets, cfg):
     return out
 
 
-def write_results(extracted, fn_out):
-    extracted.to_hdf(fn_out)
+def write_results(extracted, path=None):
+    """Expecting the path to output be that to a `*.h5` archive."""
+    return write(extracted, default_hdf("extract_neurons"))
 
 
 def main(fn_cfg):
@@ -45,10 +47,10 @@ def main(fn_cfg):
         raise RuntimeError("No neurons in config!")
 
     circuits = cfg["paths"]["circuit"]
-    targets = cfg["paths"]["defined_columns"]
+    targets = read_results(cfg["paths"]["defined_columns"])
     cfg = cfg["parameters"].get("extract_neurons", {})
     extracted = run_extractions(circuits, targets, cfg)
-    write_results(extracted, paths["neurons"])
+    write(extracted, to_path=paths.get("neurons", default_hdf("neurons"))
 
 
 if __name__ == "__main__":

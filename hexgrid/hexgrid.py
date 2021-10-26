@@ -199,6 +199,9 @@ def binsearch_radius(circuit, subtarget_size=30000, get_subtargets_for_radius=No
 
 class SubtargetConfig:
     """..."""
+
+    label = "define_subtargets"
+
     @staticmethod
     def read_json(path, reader):
         """..."""
@@ -304,25 +307,24 @@ class SubtargetConfig:
     @property
     def mean_target_size(self):
         """..."""
-        return (self._config.get("parameters", {})
-                .get("define_subtargets", {})
-                .get("mean_target_size", 31000))
+        return self.parameters.get("mean_target_size", 31000)
+
+    @property
+    def parameters(self):
+        """..."""
+        return self._config.get("parameters", {}).get(self.label, {})
 
     @property
     def tolerance(self):
         """Relative tolerance, a non-zero positive number less than 1 that determines
         the origin, rotation, and radius of the triangular tiling to use for binning.
         """
-        return (self._config.get("parameters", {})
-                .get("define_subtargets", {})
-                .get("tolerance", None))
+        return self.parameters.get("tolerance", None)
 
     @property
     def target(self):
         """..."""
-        return (self._config.get("parameters", {})
-                .get("define_subtargets", {})
-                .get("base_target", None))
+        return self.parameters.get("base_target", None)
 
     def argue(self):
         """..."""
@@ -334,11 +336,21 @@ class SubtargetConfig:
         for label, circuit in circuits():
             yield (label, circuit, self.input_flatmap[label])
 
-
     @property
     def output(self):
         """..."""
         return self._config["paths"]["defined_columns"]
+
+    @property
+    def fmt_dataframe(self):
+        """Specify whether
+        wide : gids be in lists per row, or
+        long : one gid per row
+        """
+        fmt = self.parameters.get("format", "long")
+        assert fmt in ("wide", "long")
+
+        return fmt
 
 
 def define_subtargets(config, sample_frac=None, format=None):

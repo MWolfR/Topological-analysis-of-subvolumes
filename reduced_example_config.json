@@ -7,22 +7,24 @@
         }
       }
     },
+
     {
-      "root": "results",
-      "files": {
-        "defined_columns": "subtargets.h5",
-        "neurons": "neurons.pkl",
-        "tgt_evaluations": "subtarget_quality.pkl",
-        "connection_matrices": "con_mats/con_mats_original.pkl",
-        "randomized_matrices": "con_mats/con_mats_all.pkl",
-        "topo_parameters": "analyzed/topo_parameters.pkl"
+      "root": "results/topological_sampling.h5",
+      "keys": {
+        "defined_columns": "subtargets",
+        "neurons": "neurons",
+        "tgt_evaluations": "subtarget_quality",
+        "connection_matrices": "con_mats/con_mats_original",
+        "randomized_matrices": "con_mats/con_mats_all",
+        "topo_parameters": "analyzed/topo_parameters"
       }
     }
   ],
   "parameters": {
     "define_subtargets": {
       "mean_target_size": 31000,
-      "base_target": "Mosaic"
+      "base_target": "Mosaic",
+      "format": "wide"
     },
     "extract_neurons": {
       "properties": [
