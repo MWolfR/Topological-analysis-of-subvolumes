@@ -1,19 +1,8 @@
+"""Define flatmap column subtargets for a circuit.
+"""
 import os
-from collections.abc import Mapping
-from pathlib import Path
 import argparse
-from lazy import lazy
 import logging
-
-import pandas as pd
-import numpy as np
-from matplotlib import pyplot as plt
-import seaborn as sbn
-
-
-from voxcell.voxel_data import VoxelData
-from bluepy import Cell, Circuit
-from bluepy.exceptions import BluePyError
 
 import read_config
 from write_results import write, default_hdf
@@ -46,7 +35,9 @@ def main(args):
                                    format=args.format if args.format else config.fmt_dataframe)
 
     LOG.info("Write result to %s", config.output)
-    return write(subtargets, to_path=(config.output or default_hdf("subtargets")))
+    output = write(subtargets, to_path=(config.output or default_hdf("subtargets")))
+    LOG.info("DONE writing results to %s", output)
+    return output
 
 
 if __name__ == "__main__":

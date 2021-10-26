@@ -31,11 +31,9 @@
         "x",
         "y",
         "z",
-        "flat_x",
-        "flat_y",
         "synapse_class",
         "layer",
-        "m-type"
+        "mtype"
       ]
     },
     "test_subtargets": {

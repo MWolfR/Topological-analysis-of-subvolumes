@@ -235,7 +235,6 @@ class TriTille:
 
         return self.untranslate(self.unrotate(relpos))
 
-
     def display(self, gridsize, origin=None, graphic=None,
                 return_methods=False, hexgrid=False, **kwargs):
         """Display this triangular lattice.
@@ -394,7 +393,7 @@ class TriTille:
         uvs = self.transform(xys)
         scaled_u = np.array(np.floor(uvs.u.values / self._side), dtype=int)
         scaled_v = np.array(np.floor(uvs.v.values / self._side), dtype=int)
-        return Frame2D(i=scaled_u, j=scaled_v)
+        return Frame2D(i=scaled_u, j=scaled_v, dtype=int, index=xys.index)
 
     def map_to_hexagonal(self, triangular_bins, using_scaled_x):
         """..."""
@@ -462,7 +461,7 @@ class TriTille:
         cval[odd] = cval - 0.5
         c = pd.Series(cval, dtype=int)
 
-        return pd.DataFrame({"col": c, "row": r}, dtype=int, index=hijs.index)
+        return Frame2D(col= c, row=r, dtype=int, index=hijs.index)
 
     def locate(self, bins):
         """Un bin the bins: (i, j) -> (x, y)
@@ -484,7 +483,6 @@ class TriTille:
         gridcolrows = self.index_with_column_row(gridindex)
 
         return gridcolrows.apply(lambda row: f"R{row.row};C{row.col}", axis=1)
-
 
     def locate_grid(self, bins):
         """..."""

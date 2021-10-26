@@ -8,7 +8,7 @@ def default_hdf(step):
     return (os.path.join(os.curdir, "topological_analysis.h5"), step)
 
 
-def write(extracted, to_path):
+def write(extracted, to_path, format=None):
     """Expecting the path to output be that to a `*.h5` archive.
 
     extracted : A pandas DataFrame / Series
@@ -21,18 +21,28 @@ def write(extracted, to_path):
         extracted.to_pickle(to_path)
         return to_path
 
-    extracted.to_hdf(path_hdf_store, key=group_identifier, mode="w")
+    extracted.to_hdf(path_hdf_store, key=group_identifier,
+                     mode="a", format=(format or "fixed"))
     return (path_hdf_store, group_identifier)
 
 
-def read(from_path):
-    """Read an extracted dataset...
+def read(path, for_step):
+    """Read dataset extracted for a pipeline step from path to the dataset.
+
     path : a string or a tuple of strings
+    for_step : string that names a pipeline step.
     """
     try:
-        path_hdf_store, group_identifier = from_path
+        path_hdf_store, group_identifier = path
     except TypeError:
-        assert from_path.endswith(".pkl")
-        return pd.read__pickle(from_path)
+        assert path.endswith(".pkl")
+        if not os.path.isfile(path):
+            raise RuntimeError(f"Missing pickled data for step {for_step} at {path}.\n"
+                               f"Run {for_step} with config that sets outputs to pickels first.")
+        return pd.read_pickle(path)
+
+    if not os.path.isfile(path_hdf_store):
+        raise RuntimeError(f"Missing HDF data for step {for_step} at path {path_hdf_store}\n"
+                           f"Run {for_step} step with config that sets outputs to HDF first.")
 
     return pd.read_hdf(path_hdf_store, key=group_identifier)

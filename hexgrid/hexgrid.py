@@ -364,12 +364,12 @@ def define_subtargets(config, sample_frac=None, format=None):
         """..."""
         LOG.info("GENERATE subtargets for circuit %s", label)
         _, _subtargets = generate_subtargets(circuit, flatmap,
-                                            size=config.mean_target_size,
-                                            target=config.target,
-                                            sample=sample_frac)
+                                             size=config.mean_target_size,
+                                             target=config.target,
+                                             sample=sample_frac)
         LOG.info("DONE subtargets for circuit %s", label)
         subtargets = _subtargets.assign(circuit=label) if label else _subtargets
-        return subtargets.rename(columns={"x": "flat_x", "y": "flat_y", "index": "gid"})
+        return subtargets.rename(columns={"x": "flat_x", "y": "flat_y"})
 
     try:
         _=config.input_circuit.keys
