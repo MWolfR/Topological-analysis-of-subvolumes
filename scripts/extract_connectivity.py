@@ -9,7 +9,7 @@ import os
 from tqdm import tqdm
 from scipy import sparse
 
-from write_results import read as read_results, write, default_hdf
+from write_results import read as read_results, write_toc_plus_payload as write, default_hdf
 
 read_cfg = importlib.import_module("read_config")
 
