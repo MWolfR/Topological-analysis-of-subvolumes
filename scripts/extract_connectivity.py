@@ -85,9 +85,9 @@ def main(fn_cfg):
     if "connection_matrices" not in paths:
         raise RuntimeError("No connection matrices in config!")
 
-    circuits = cfg["paths"]["circuit"]
     cfg = cfg["parameters"].get("extract_connectivity", {})
-    path_targets = cfg["paths"]["defined_columns"]
+    circuits = paths["circuit"]
+    path_targets = paths["defined_columns"]
 
     LOG.warning("Read targets from path %s", path_targets)
     targets = read_results(path_targets, for_step="subtargets")
