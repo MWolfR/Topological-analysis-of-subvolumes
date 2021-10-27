@@ -9,6 +9,8 @@ import os
 from tqdm import tqdm
 from scipy import sparse
 
+from write_results import read as read_results, write, default_hdf
+
 read_cfg = importlib.import_module("read_config")
 
 
@@ -73,10 +75,6 @@ def run_extraction(circuits, subtargets, list_of_connectomes):
     return con_mats
 
 
-def write_results(extracted, fn_out):
-    raise NotImplementedError("Implement using read/write from vishals development branch!")
-
-
 def main(fn_cfg):
     cfg = read_cfg.read(fn_cfg)
     paths = cfg["paths"]
@@ -88,10 +86,15 @@ def main(fn_cfg):
         raise RuntimeError("No connection matrices in config!")
 
     circuits = cfg["paths"]["circuit"]
-    targets = cfg["paths"]["defined_columns"]
     cfg = cfg["parameters"].get("extract_connectivity", {})
+    path_targets = cfg["paths"]["defined_columns"]
+
+    LOG.warning("Read targets from path %s", path_targets)
+    targets = read_results(path_targets, for_step="subtargets")
+    LOG.warning("Number of targets read: %s", targets.shape[0])
+
     extracted = run_extraction(circuits, targets, cfg.get("connectomes", []))
-    write_results(extracted, paths["connection_matrices"])
+    write(extracted, to_path=paths.get("connection_matrices", default_hdf("connection_matrices")), format="table")
 
 
 if __name__ == "__main__":
