@@ -54,14 +54,14 @@ def run_extraction(circuits, subtargets, list_of_connectomes):
 
     connectome_names = [" + ".join(lst) for lst in list_of_connectomes]
     connectome_series = pandas.Series(list_of_connectomes, index=connectome_names)
-    connectome_series.index.name = "Connectome"
+    connectome_series.index.name = "connectome"
 
     # Cross product with list of connectomes
     connectomes = subtargets.index.to_frame().apply(lambda _: connectome_series, axis=1).stack()
     # Connectome to sonata filenames
-    sonata_files = connectomes.index.to_frame()["Circuit"].combine(connectomes, func=find_connectome_files(circuits))
+    sonata_files = connectomes.index.to_frame()["circuit"].combine(connectomes, func=find_connectome_files(circuits))
     # Because pandas is utterly stupid
-    subtargets = subtargets[sonata_files.index.droplevel("Connectome")]
+    subtargets = subtargets[sonata_files.index.droplevel("connectome")]
     subtargets.index = sonata_files.index
 
     # Extract connection matrices
