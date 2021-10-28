@@ -19,8 +19,7 @@ from bluepy import Cell, Circuit
 from bluepy.exceptions import BluePyError
 
 
-LOG = logging.getLogger("Tessellate-2D with triangles.")
-LOG.setLevel(os.environ.get("LOGLEVEL", "INFO"))
+LOG = logging.getLogger("Flatmap Utility")
 
 
 def P(x, y):

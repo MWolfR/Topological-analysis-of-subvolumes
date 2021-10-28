@@ -1,28 +1,38 @@
 """Bin cell flatmap positions in a hexagonal grid.
 """
 import os
-import importlib
 from collections.abc import Mapping
 from pathlib import Path
-import json
-from lazy import lazy
 import logging
 
 import pandas as pd
 import numpy as np
-from matplotlib import pyplot as plt
-import seaborn as sbn
 
 from voxcell.voxel_data import VoxelData
 from bluepy import Cell, Circuit
 from bluepy.exceptions import BluePyError
 
-from tessellate import TriTille
+from .tessellate import TriTille
+import flatmap_utility as flattened
 
 XYZ = [Cell.X, Cell.Y, Cell.Z]
 
-LOG = logging.getLogger("Generate flatmap subtargets")
-LOG.setLevel(os.environ.get("LOGLEVEL", "INFO"))
+LOG = logging.getLogger("Flatmap Utility")
+
+
+def get_cell_ids(circuit, target=None, sample=None):
+    """..."""
+    gids = pd.Series(circuit.cells.ids(target), name="gid")
+
+    if isinstance(sample, int):
+        return gids.sample(n=sample)
+
+    if isinstance(sample, float):
+        return gids.sample(frac=sample)
+
+    assert not sample, sample
+
+    return gids
 
 
 def get_cell_positions(circuit, target=None, sample=None):
@@ -40,12 +50,39 @@ def get_cell_positions(circuit, target=None, sample=None):
     return positions
 
 
-def get_flatmap(circuit, positions):
+def get_flatmap(circuit, target=None, sample=None, subpixel=True):
     """..."""
+    LOG.info("GET flatmap for target %s sample %s%s",
+             target, sample, ", with subsample resolution." if subpixel else ".")
+
     flatmap = circuit.atlas.load_data("flatmap")
-    fpos =  pd.DataFrame(flatmap.lookup(positions.values),
-                         columns=["x", "y"], index=positions.index)
-    return fpos[np.logical_and(fpos.x >= 0, fpos.y >= 0)]
+
+    if not subpixel:
+        positions = get_cell_positions(circuit, target, sample)
+
+        fpos =  pd.DataFrame(flatmap.lookup(positions.values),
+                             columns=["x", "y"], index=positions.index)
+
+        LOG.info("DONE getting flatmap")
+        return fpos[np.logical_and(fpos.x >= 0, fpos.y >= 0)]
+
+    LOG.info("GET orientations from the atlas.")
+    orientations = circuit.atlas.load_data("orientation")
+    LOG.info("DONE orientations from the atlas.")
+
+    LOG.info("GET supersampled flatmap")
+    flatxy = (flattened
+              .supersampled_neuron_locations(circuit, flatmap, orientations)
+              .rename(columns={"flat x": "x", "flat y": "y"}))
+    LOG.info("DONE supersampled flatmap")
+
+    gids = get_cell_ids(circuit, target, sample)
+
+    in_target = flatxy.reindex(gids)
+    in_target.index.name = "gid"
+
+    LOG.info("DONE getting flatmap")
+    return in_target
 
 
 def flatmap_hexbin(circuit, radius=10, gridsize=120, sample=None):
@@ -107,12 +144,9 @@ def generate_subtargets(circuit, flatmap=None, radius=None, size=None,
     if naming_scheme:
         raise NotImplementedError("TODO")
 
-    LOG.info("GET cell positions")
-    positions = get_cell_positions(circuit, target, sample)
-    LOG.info("DONE %s cell positions", positions.shape[0])
 
     LOG.info("GET flatmap positions")
-    flatmap = get_flatmap(circuit, positions)
+    flatmap = get_flatmap(circuit, target, sample)
     LOG.info("DONE %s flatmap positions", flatmap.shape[0])
 
     tritilling = TriTille(radius)
@@ -160,7 +194,7 @@ def binsearch_radius(circuit, subtarget_size=30000, get_subtargets_for_radius=No
                      n_iter=0):
     """..."""
     lower_bound = lower_bound or 1.
-    upper_bound = upper_bound or 120
+    upper_bound = upper_bound or 6000
 
     mean_radius = (lower_bound + upper_bound) / 2.
 
