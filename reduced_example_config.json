@@ -38,7 +38,8 @@
     "test_subtargets": {
       "metrics": [
         "orthogonality",
-        "layer_mix"
+        "neuron_counts",
+        "target_composition"
       ]
     },
     "extract_connectivity": {
