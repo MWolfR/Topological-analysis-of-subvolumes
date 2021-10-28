@@ -50,21 +50,21 @@ def get_cell_positions(circuit, target=None, sample=None):
     return positions
 
 
-def get_flatmap(circuit, target=None, sample=None, subpixel=True):
+def cached(circuit, method):
     """..."""
-    LOG.info("GET flatmap for target %s sample %s%s",
-             target, sample, ", with subsample resolution." if subpixel else ".")
+    try:
+        value = getattr(circuit, method.__qualname__)
+    except AttributeError:
+        value = method(circuit)
+        setattr(circuit, method.__qualname__, value)
+    return value
 
+
+def flatmap_positions(circuit):
+    """..."""
+    LOG.info("GET flatmap from the atlas.")
     flatmap = circuit.atlas.load_data("flatmap")
-
-    if not subpixel:
-        positions = get_cell_positions(circuit, target, sample)
-
-        fpos =  pd.DataFrame(flatmap.lookup(positions.values),
-                             columns=["x", "y"], index=positions.index)
-
-        LOG.info("DONE getting flatmap")
-        return fpos[np.logical_and(fpos.x >= 0, fpos.y >= 0)]
+    LOG.info("DONE flatmap from the atlas.")
 
     LOG.info("GET orientations from the atlas.")
     orientations = circuit.atlas.load_data("orientation")
@@ -75,12 +75,32 @@ def get_flatmap(circuit, target=None, sample=None, subpixel=True):
               .supersampled_neuron_locations(circuit, flatmap, orientations)
               .rename(columns={"flat x": "x", "flat y": "y"}))
     LOG.info("DONE supersampled flatmap")
+    return flatxy
 
-    gids = get_cell_ids(circuit, target, sample)
 
-    in_target = flatxy.reindex(gids)
-    in_target.index.name = "gid"
+def get_flatmap(circuit, target=None, sample=None, subpixel=True):
+    """..."""
+    LOG.info("GET flatmap for target %s sample %s%s",
+             target, sample, ", with subsample resolution." if subpixel else ".")
 
+    if not subpixel:
+        flatmap = circuit.atlas.load_data("flatmap")
+        positions = get_cell_positions(circuit, target, sample)
+
+        fpos =  pd.DataFrame(flatmap.lookup(positions.values),
+                             columns=["x", "y"], index=positions.index)
+
+        LOG.info("DONE getting flatmap")
+        return fpos[np.logical_and(fpos.x >= 0, fpos.y >= 0)]
+
+    flat_xy = cached(circuit, flatmap_positions)
+    if target is not None or sample is not None:
+        gids = get_cell_ids(circuit, target, sample)
+        in_target = flat_xy.reindex(gids)
+    else:
+        in_target = flat_xy
+
+    assert in_target.index.name == "gid", in_target.index.name
     LOG.info("DONE getting flatmap")
     return in_target
 

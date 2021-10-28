@@ -271,7 +271,7 @@ def supersampled_neuron_locations(circ, fm, orient, pixel_sz=34.0):
     final_frame = numpy.vstack(final.values)
     out = pandas.DataFrame(final_frame,
                            columns=["flat x", "flat y"],
-                           index=numpy.hstack(nrn_gid_frame[idxx].values))
+                           index=pandas.Index(numpy.hstack(nrn_gid_frame[idxx].values), name="gid"))
     return out
 
 
