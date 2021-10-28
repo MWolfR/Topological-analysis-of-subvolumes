@@ -38,6 +38,30 @@ def connection_matrix_for_gids(sonata_fn, gids):
     return mat
 
 
+def full_cmat(circ, conn_file, chunk=50000000):
+    h5 = h5py.File(conn_file, "r")['edges/default']
+    N = circ.cells.count()
+
+    dset_sz = h5['source_node_id'].shape[0]
+    A = numpy.zeros(dset_sz, dtype=int)
+    B = numpy.zeros(dset_sz, dtype=int)
+    splits = numpy.arange(0, dset_sz + chunk, chunk)
+    for splt_fr, splt_to in tqdm(zip(splits[:-1], splits[1:]), total=len(splits) - 1):
+        A[splt_fr:splt_to] = h5['source_node_id'][splt_fr:splt_to]
+        B[splt_fr:splt_to] = h5['target_node_id'][splt_fr:splt_to]
+    M = sparse.coo_matrix((numpy.ones_like(A, dtype=bool), (A, B)), shape=(N, N))
+    return M.tocsr()
+
+
+def random_cmat(circ, conn_file):
+    """ For testing without running 'full_cmat'"""
+    N = circ.cells.count()
+    A = numpy.random.randint(0, N, 1000)
+    B = numpy.random.randint(0, N, 1000)
+    M = sparse.coo_matrix((numpy.ones_like(A, dtype=bool), (A, B)), shape=(N, N))
+    return M.tocsr()
+
+
 def find_connectome_files(circuit_dict):
     def lookup_sonata_files(circ_name, conn_lst):
         circ = circuit_dict[circ_name]
@@ -76,6 +100,41 @@ def run_extraction(circuits, subtargets, list_of_connectomes):
     return con_mats
 
 
+def run_extraction_from_full_matrix(circuits, subtargets, list_of_connectomes):
+    if len(list_of_connectomes) == 0:
+        LOG.warning("No connectomes defined. This step will do nothing!")
+    circuits = dict([(k, bluepy.Circuit(v)) for k, v in circuits.items()])
+    connectome_files = find_connectome_files(circuits)
+    connectome_names = [" + ".join(lst) for lst in list_of_connectomes]
+
+    circ_lvl_idx = subtargets.index.names.index("circuit")
+    idxx = [circ_lvl_idx] + numpy.setdiff1d(numpy.arange(len(subtargets.index.levels)), circ_lvl_idx).tolist()
+    subtargets = subtargets.reorder_levels(idxx)
+
+    res = []
+    circ_names = list(subtargets.index.levels[0])
+    for circ_name in circ_names:
+        LOG.info("Connectivity for circuit {0}...".format(circ_name))
+        conn_buffer = {}
+        circ = circuits[circ_name]
+        N = circ.cells.count()
+        res_over_connectomes = []
+        for lst_conn_ids in list_of_connectomes:
+            LOG.info("\t...for the following connectomes: {0}".format(lst_conn_ids))
+            lst_conn_files = connectome_files(circ_name, lst_conn_ids)
+            M = sparse.csr_matrix((N, N), dtype=bool)
+            for conn_file in lst_conn_files:
+                if conn_file not in conn_buffer:
+                    LOG.info("{0} not buffered... creating...".format(conn_file))
+                    conn_buffer[conn_file] = full_cmat(circ, conn_file)  # random_cmat(circ, conn_file)
+                M = M + conn_buffer[conn_file]
+            subM = subtargets[circ_name].apply(lambda x: M[numpy.ix_(numpy.array(x) - 1, numpy.array(x) - 1)])
+            res_over_connectomes.append(subM)
+        res.append(pandas.concat(res_over_connectomes, keys=connectome_names, names=["connectome"]))
+    res = pandas.concat(res, keys=circ_names, names=["circuit"])
+    return res
+
+
 def main(fn_cfg):
     cfg = read_cfg.read(fn_cfg)
     paths = cfg["paths"]
@@ -94,7 +153,7 @@ def main(fn_cfg):
     targets = read_results(path_targets, for_step="subtargets")
     LOG.warning("Number of targets read: %s", targets.shape[0])
 
-    extracted = run_extraction(circuits, targets, cfg.get("connectomes", []))
+    extracted = run_extraction_from_full_matrix(circuits, targets, cfg.get("connectomes", []))
     write(extracted, to_path=paths.get("connection_matrices", default_hdf("connection_matrices")), format="table")
 
 
