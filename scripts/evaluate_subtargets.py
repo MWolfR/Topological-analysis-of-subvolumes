@@ -82,9 +82,18 @@ def evaluate_orthoganality(neuron_df, circuit_dict):
     def skewed(c):
         return numpy.abs(numpy.corrcoef(c[:, 0], c[:, 1])[0, 1]) \
                + numpy.abs(numpy.corrcoef(c[:, 2], c[:, 1])[0, 1])
-    result = C.apply(skewed)
-    result.name = "Non-orthogonality"
-    return result
+
+    def extent(c):
+        low = numpy.percentile(c, 1, axis=0)
+        high = numpy.percentile(c, 99, axis=0)
+        d = high - low
+        return numpy.sqrt((d[0] / d[1]) ** 2 + (d[2] / d[1]) ** 2)
+
+    result_orth = C.apply(skewed)
+    result_orth.name = "non-orthogonality"
+    result_ext = C.apply(extent)
+    result_ext.name = "extent_ratio"
+    return pandas.concat([result_orth, result_ext], axis=1)
 
 
 def perform_evaluations(neuron_df, list_of_metrics, circuit_dict):
