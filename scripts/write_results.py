@@ -4,6 +4,7 @@ import os
 import io
 
 import h5py
+import numpy
 import pandas as pd
 
 
@@ -45,7 +46,7 @@ def write_sparse_matrix_payload(hdf_group, dset_pattern="matrix_{0}"):
 
 def read_sparse_matrix_payload(hdf_dset):
     from scipy import sparse
-    raw_data = bytearray(hdf_dset)
+    raw_data = bytes(hdf_dset[:].astype(numpy.uint8))
     bio = io.BytesIO(raw_data)
     mat = sparse.load_npz(bio)
     return mat

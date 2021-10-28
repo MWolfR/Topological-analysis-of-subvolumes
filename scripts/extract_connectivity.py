@@ -30,8 +30,9 @@ def connection_matrix_for_gids(sonata_fn, gids):
         ranges = h5['indices']['target_to_source']['node_id_to_ranges'][id_post, :]
         for block in h5['indices']['target_to_source']['range_to_edge_id'][ranges[0]:ranges[1], :]:
             ids_pre.append(h5['source_node_id'][block[0]:block[1]])
-        row_ids = numpy.nonzero(numpy.in1d(idx, numpy.hstack(ids_pre)))[0]
-        indices.extend(row_ids)
+        if len(ids_pre) > 0:
+            row_ids = numpy.nonzero(numpy.in1d(idx, numpy.hstack(ids_pre)))[0]
+            indices.extend(row_ids)
         indptr.append(len(indices))
     mat = sparse.csc_matrix((numpy.ones(len(indices), dtype=bool), indices, indptr), shape=(N, N))
     return mat
