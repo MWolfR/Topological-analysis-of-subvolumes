@@ -46,3 +46,29 @@ def read(path, for_step):
                            f"Run {for_step} step with config that sets outputs to HDF first.")
 
     return pd.read_hdf(path_hdf_store, key=group_identifier)
+
+
+def resolve_output_between(argued, and_configured):
+    """
+    If a valid value is passed in arguments from CLI, use that one instead
+    of the value provided in a configuration.
+
+    Only the folder is configurable from CLI --
+    HDF keys are fixed to follow those set in a config.
+    """
+    if not argued:
+        return and_configured
+
+    try:
+        _, __ = argued
+    except TypeError:
+        pass
+    else:
+        return argued
+
+    try:
+        _, key_hdf = and_configured
+    except TypeError:
+        return argued
+
+    return (argued, key_hdf)

@@ -1,0 +1,20 @@
+#!/bin/bash
+#!/bin/bash -l
+#SBATCH --nodes=1
+#SBATCH --time=2:00:00
+#SBATCH --exclusive
+#SBATCH --constraint=cpu
+#SBATCH --mem=0
+#SBATCH --partition=prod_small
+#SBATCH --account=proj83
+#SBATCH --output="topochar-extract-neurons%x-%j.out"
+#SBATCH --error="topochar-extract-neurons%x-%j.err"
+
+#module list
+#module load archive/2020-08
+#module load py-bluepy/2.0.0
+
+source /gpfs/bbp.cscs.ch/project/proj83/home/sood/venv.sh
+
+echo "extract_neurons.py " "$@"
+python extract_neurons.py "$@"

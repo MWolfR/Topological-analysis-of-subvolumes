@@ -6,7 +6,7 @@ import logging
 
 import read_config
 from write_results import write, default_hdf
-from hexgrid import SubtargetConfig, define_subtargets
+from flatmap_utility.hexgrid import SubtargetConfig, define_subtargets
 
 
 LOG = logging.getLogger("Generate flatmap subtargets")
@@ -34,8 +34,17 @@ def main(args):
     subtargets = define_subtargets(config, sample_frac=sample,
                                    format=args.format if args.format else config.fmt_dataframe)
 
-    LOG.info("Write result to %s", config.output)
-    output = write(subtargets, to_path=(config.output or default_hdf("subtargets")))
+    output = config.output
+    if args.output:
+        try:
+            _, hdf_key = output
+        except TypeError:
+            output = args.output
+        else:
+            output = (args.output, hdf_key)
+
+    LOG.info("Write result to %s", output)
+    output = write(subtargets, to_path=(output or default_hdf("subtargets")))
     LOG.info("DONE writing results to %s", output)
     return output
 
@@ -51,6 +60,8 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--sample", help="A float to sample with", default=None)
 
     parser.add_argument("-f", "--format", help="Format for annotating the columns.", default=None)
+
+    parser.add_argument("-o", "--output", help="Path to the directory to output in.", default=None)
 
     args = parser.parse_args()
 

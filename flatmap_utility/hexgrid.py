@@ -4,6 +4,7 @@ import os
 from collections.abc import Mapping
 from pathlib import Path
 import logging
+from lazy import lazy
 
 import pandas as pd
 import numpy as np
@@ -143,13 +144,16 @@ def generate_subtargets(circuit, flatmap=None, radius=None, size=None,
     ~            subtarget_name : a pretty name for the subtarget.
     Values : lists of gids
     """
+    assert radius or size, "Need one to define subtargets."
+    assert not (radius and size), "Cannot yet use both to define subtargets"
+
     if size:
         radius, stats = binsearch_radius(circuit, subtarget_size=size,
                                          get_subtargets_for_radius=(
                                              lambda radius: generate_subtargets(circuit, flatmap, radius,
                                                                                 target=target, sample=sample,
                                                                                 naming_scheme=naming_scheme)),
-                                         lower_bound=1., upper_bound=120., tolerance=None,
+                                         lower_bound=1., upper_bound=6000., tolerance=None,
                                          sample_frac=sample)
         return (radius,
                 generate_subtargets(circuit, flatmap, radius=radius, size=None,
@@ -182,7 +186,7 @@ def generate_subtargets(circuit, flatmap=None, radius=None, size=None,
     annotated_grid = grid.assign(subtarget=annotation.loc[grid.index])
     LOG.info("DONE %s annotations", annotation.shape[0])
 
-    return gids_by_gridpoint.join(annotated_grid).reset_index().set_index("subtarget")
+    return (radius, gids_by_gridpoint.join(annotated_grid).reset_index().set_index("subtarget"))
 
 
 def get_statistics(circuit, radius, sample_frac=None):
@@ -284,7 +288,7 @@ class SubtargetConfig:
 
         return circuit
 
-    @property
+    @lazy
     def input_circuit(self):
         """..."""
         input = self._config["paths"]
@@ -313,7 +317,7 @@ class SubtargetConfig:
 
         return circuit.atlas.load_data("flatmap")
 
-    @property
+    @lazy
     def input_atlas(self):
         """..."""
         try:
@@ -322,7 +326,7 @@ class SubtargetConfig:
             return self.input_circuit.atlas
         return {label: circuit.atlas for label, circuit in circuits()}
 
-    @property
+    @lazy
     def default_flatmap(self):
         """..."""
         try:
@@ -331,7 +335,7 @@ class SubtargetConfig:
             return self.input_atlas.load_data("flatmap")
         return {circuit: atlas.load_data("flatmap") for circuit, atlas in atlases()}
 
-    @property
+    @lazy
     def input_flatmap(self):
         """..."""
         input = self._config["paths"]
@@ -358,24 +362,47 @@ class SubtargetConfig:
         return {c: self.resolve_flatmap_circuit(labeled=c, nrrd=flatmap.get(c, None))
                 for c in self.input_circuit.keys()}
 
-    @property
+    @lazy
     def mean_target_size(self):
         """..."""
-        return self.parameters.get("mean_target_size", 31000)
+        try:
+            value = self.parameters["mean_target_size"]
+        except KeyError:
+            return None
 
-    @property
+        assert self.mean_target_radius is None,\
+            "Cannot set both radius and mean target size, only one."
+
+        return value
+
+    @lazy
+    def target_radius(self):
+        """For example, if using hexagons,
+        length of the side of the hexagon to tile with.
+        """
+        try:
+            value = self.parameters["radius"]
+        except KeyError:
+            return None
+
+        assert self.mean_target_size is None,\
+            "Cannot set both radius and mean target size, only one."
+
+        return value
+
+    @lazy
     def parameters(self):
         """..."""
         return self._config.get("parameters", {}).get(self.label, {})
 
-    @property
+    @lazy
     def tolerance(self):
         """Relative tolerance, a non-zero positive number less than 1 that determines
         the origin, rotation, and radius of the triangular tiling to use for binning.
         """
         return self.parameters.get("tolerance", None)
 
-    @property
+    @lazy
     def target(self):
         """..."""
         return self.parameters.get("base_target", None)
@@ -390,20 +417,19 @@ class SubtargetConfig:
         for label, circuit in circuits():
             yield (label, circuit, self.input_flatmap[label])
 
-    @property
+    @lazy
     def output(self):
         """..."""
         return self._config["paths"]["defined_columns"]
 
-    @property
+    @lazy
     def fmt_dataframe(self):
         """Specify whether
         wide : gids be in lists per row, or
         long : one gid per row
         """
-        fmt = self.parameters.get("format", "long")
+        fmt = self.parameters.get("format", "wide")
         assert fmt in ("wide", "long")
-
         return fmt
 
 
@@ -418,6 +444,7 @@ def define_subtargets(config, sample_frac=None, format=None):
         """..."""
         LOG.info("GENERATE subtargets for circuit %s", label)
         _, _subtargets = generate_subtargets(circuit, flatmap,
+                                             radius=config.target_radius,
                                              size=config.mean_target_size,
                                              target=config.target,
                                              sample=sample_frac)
