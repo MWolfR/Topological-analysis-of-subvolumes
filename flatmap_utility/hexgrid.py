@@ -79,7 +79,7 @@ def flatmap_positions(circuit):
     return flatxy
 
 
-def get_flatmap(circuit, target=None, sample=None, subpixel=True):
+def get_flatmap(circuit, target=None, sample=None, subpixel=True, dropna=True):
     """..."""
     LOG.info("GET flatmap for target %s sample %s%s",
              target, sample, ", with subsample resolution." if subpixel else ".")
@@ -103,7 +103,7 @@ def get_flatmap(circuit, target=None, sample=None, subpixel=True):
 
     assert in_target.index.name == "gid", in_target.index.name
     LOG.info("DONE getting flatmap")
-    return in_target
+    return in_target.dropna() if dropna else in_target
 
 
 def flatmap_hexbin(circuit, radius=10, gridsize=120, sample=None):
@@ -168,7 +168,6 @@ def generate_subtargets(circuit, flatmap=None, radius=None, size=None,
     if naming_scheme:
         raise NotImplementedError("TODO")
 
-
     LOG.info("GET flatmap positions")
     flatmap = get_flatmap(circuit, target, sample)
     LOG.info("DONE %s flatmap positions", flatmap.shape[0])
@@ -223,10 +222,10 @@ def binsearch_radius(circuit, subtarget_size=30000, get_subtargets_for_radius=No
     mean_radius = (lower_bound + upper_bound) / 2.
 
     if not get_subtargets_for_radius:
-        subtargets = generate_subtargets(circuit, radius=mean_radius,
-                                         sample=sample_frac)
+        _, subtargets = generate_subtargets(circuit, radius=mean_radius,
+                                            sample=sample_frac)
     else:
-        subtargets = get_subtargets_for_radius(mean_radius)
+        _, subtargets = get_subtargets_for_radius(mean_radius)
 
     subtarget_sizes = (subtargets.groupby("subtarget").agg("size")
                        / (1. if not sample_frac else sample_frac))
@@ -448,7 +447,7 @@ def define_subtargets(config, sample_frac=None, format=None):
                                              size=config.mean_target_size,
                                              target=config.target,
                                              sample=sample_frac)
-        LOG.info("DONE subtargets for circuit %s", label)
+        LOG.info("DONE %s subtargets for circuit %s", _subtargets.shape[0], label)
         subtargets = _subtargets.assign(circuit=label) if label else _subtargets
         return subtargets.rename(columns={"x": "flat_x", "y": "flat_y"})
 
