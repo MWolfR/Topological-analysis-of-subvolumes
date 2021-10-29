@@ -498,7 +498,8 @@ class TriTille:
         return grid_points
 
     def plot_hextiles(self, positions, bins=None, graphic=None,
-                      annotate=True, with_grid=True):
+                      annotate=True, with_grid=True,
+                      pointmarker="o", pointmarkersize=20,):
         """
         TODO: Annotate trigrid.
         """
@@ -523,7 +524,8 @@ class TriTille:
         colors_index = 2 * even_col + even_row
         colors = palette[colors_index]
 
-        plt.scatter(positions["x"], positions["y"], c=colors, s=20, marker="o")
+        plt.scatter(positions["x"], positions["y"],
+                    c=colors, marker=pointmarker, s=pointmarkersize)
 
         if with_grid:
 
