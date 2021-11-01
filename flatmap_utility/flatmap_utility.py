@@ -91,9 +91,10 @@ class Combination(object):
 
 def flat_coordinate_frame(coordinates3d, fm, grouped=False):
     coords_flat = fm.lookup(coordinates3d)
-    coord_frame = pandas.DataFrame(coordinates3d, index=pandas.MultiIndex.from_tuples(map(tuple, coords_flat),
-                                                                                      names=["f_x", "f_y"]),
-                                 columns=["x", "y", "z"])
+    coord_frame = pandas.DataFrame(coordinates3d,
+                                   index=(pandas.MultiIndex
+                                          .from_tuples(map(tuple, coords_flat), names=["f_x", "f_y"])),
+                                   columns=["x", "y", "z"])
     if grouped:
         return coord_frame.groupby(["f_x", "f_y"]).apply(lambda x: x.values)
     return coord_frame
@@ -101,7 +102,7 @@ def flat_coordinate_frame(coordinates3d, fm, grouped=False):
 
 def neuron_flat_coordinate_frame(circ, fm, grouped=False):
     coordinates3d = circ.cells.get(properties=["x", "y", "z"])
-    coord_frame = flat_coordinate_frame(coordinates3d, fm)
+    coord_frame = flat_coordinate_frame(coordinates3d.values, fm)
     coord_frame["gid"] = coordinates3d.index.values
     if grouped:
         A = coord_frame[["x", "y", "z"]].groupby(["f_x", "f_y"]).apply(lambda x: x.values)
@@ -125,7 +126,7 @@ def voxel_flat_coordinate_frame(fm, in_voxel_indices=False, grouped=False):
 
 
 def flatmap_pixel_gradient(fm_or_frame):
-    from ..wm_recipe_utility import colored_points_to_image
+    from .wm_recipe_utility import colored_points_to_image
     if not isinstance(fm_or_frame, pandas.DataFrame):
         fm_or_frame = voxel_flat_coordinate_frame(fm_or_frame)
     per_pixel = fm_or_frame.groupby(["f_x", "f_y"])
@@ -178,9 +179,9 @@ def per_pixel_coordinate_transformation(fm, orient, from_system="global", to_sys
     try:
         tgt_tf = (lst_systems.index(from_system), lst_systems.index(to_system))
     except ValueError:
-        raise ValueError("from_system and to_system must be in: {0}, but you provided {1}".format(lst_systems,
-                                                                                                  (from_system,
-                                                                                                   to_system)))
+        raise ValueError("from_system and to_system must be in: {0}, but you provided {1}"
+                         .format(lst_systems,(from_system, to_system)))
+
     invalid_combos = [(2, 3), (3, 2), (3, 1), (3, 0), (4, 2), (4, 1), (4, 0), (3, 5), (4, 5), (5, 3), (5, 4)]
     if tgt_tf in invalid_combos:
         raise ValueError("Invalid combination!")
@@ -270,7 +271,7 @@ def supersampled_neuron_locations(circ, fm, orient, pixel_sz=34.0):
     final_frame = numpy.vstack(final.values)
     out = pandas.DataFrame(final_frame,
                            columns=["flat x", "flat y"],
-                           index=numpy.hstack(nrn_gid_frame[idxx].values))
+                           index=pandas.Index(numpy.hstack(nrn_gid_frame[idxx].values), name="gid"))
     return out
 
 

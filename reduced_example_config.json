@@ -3,7 +3,7 @@
     {
       "files": {
         "circuit": {
-          "Bio_M": "/gpfs/bbp.cscs.ch/project/proj83/circuits/Bio_M/20200805/CircuitConfig"
+          "Bio_M": "/gpfs/bbp.cscs.ch/project/proj83/circuits/Bio_M/20200805/CircuitConfig_TC_WM"
         }
       }
     },
@@ -22,9 +22,8 @@
   ],
   "parameters": {
     "define_subtargets": {
-      "mean_target_size": 31000,
-      "base_target": "Mosaic",
-      "format": "wide"
+      "radius": 230.0,
+      "base_target": "Mosaic"
     },
     "extract_neurons": {
       "properties": [
@@ -49,11 +48,11 @@
           "local"
         ],
         [
-          "thalamocortical_input_VPM"
+          "intra_SSCX_midrange_wm"
         ],
         [
           "local",
-          "thalamocortical_input_VPM"
+          "intra_SSCX_midrange_wm"
         ]
       ]
     },

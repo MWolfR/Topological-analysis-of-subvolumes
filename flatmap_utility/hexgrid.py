@@ -1,28 +1,39 @@
 """Bin cell flatmap positions in a hexagonal grid.
 """
 import os
-import importlib
 from collections.abc import Mapping
 from pathlib import Path
-import json
-from lazy import lazy
 import logging
+from lazy import lazy
 
 import pandas as pd
 import numpy as np
-from matplotlib import pyplot as plt
-import seaborn as sbn
 
 from voxcell.voxel_data import VoxelData
 from bluepy import Cell, Circuit
 from bluepy.exceptions import BluePyError
 
-from tessellate import TriTille
+from .tessellate import TriTille
+import flatmap_utility as flattened
 
 XYZ = [Cell.X, Cell.Y, Cell.Z]
 
-LOG = logging.getLogger("Generate flatmap subtargets")
-LOG.setLevel(os.environ.get("LOGLEVEL", "INFO"))
+LOG = logging.getLogger("Flatmap Utility")
+
+
+def get_cell_ids(circuit, target=None, sample=None):
+    """..."""
+    gids = pd.Series(circuit.cells.ids(target), name="gid")
+
+    if isinstance(sample, int):
+        return gids.sample(n=sample)
+
+    if isinstance(sample, float):
+        return gids.sample(frac=sample)
+
+    assert not sample, sample
+
+    return gids
 
 
 def get_cell_positions(circuit, target=None, sample=None):
@@ -40,12 +51,59 @@ def get_cell_positions(circuit, target=None, sample=None):
     return positions
 
 
-def get_flatmap(circuit, positions):
+def cached(circuit, method):
     """..."""
+    try:
+        value = getattr(circuit, method.__qualname__)
+    except AttributeError:
+        value = method(circuit)
+        setattr(circuit, method.__qualname__, value)
+    return value
+
+
+def flatmap_positions(circuit):
+    """..."""
+    LOG.info("GET flatmap from the atlas.")
     flatmap = circuit.atlas.load_data("flatmap")
-    fpos =  pd.DataFrame(flatmap.lookup(positions.values),
-                         columns=["x", "y"], index=positions.index)
-    return fpos[np.logical_and(fpos.x >= 0, fpos.y >= 0)]
+    LOG.info("DONE flatmap from the atlas.")
+
+    LOG.info("GET orientations from the atlas.")
+    orientations = circuit.atlas.load_data("orientation")
+    LOG.info("DONE orientations from the atlas.")
+
+    LOG.info("GET supersampled flatmap")
+    flatxy = (flattened
+              .supersampled_neuron_locations(circuit, flatmap, orientations)
+              .rename(columns={"flat x": "x", "flat y": "y"}))
+    LOG.info("DONE supersampled flatmap")
+    return flatxy
+
+
+def get_flatmap(circuit, target=None, sample=None, subpixel=True, dropna=True):
+    """..."""
+    LOG.info("GET flatmap for target %s sample %s%s",
+             target, sample, ", with subsample resolution." if subpixel else ".")
+
+    if not subpixel:
+        flatmap = circuit.atlas.load_data("flatmap")
+        positions = get_cell_positions(circuit, target, sample)
+
+        fpos =  pd.DataFrame(flatmap.lookup(positions.values),
+                             columns=["x", "y"], index=positions.index)
+
+        LOG.info("DONE getting flatmap")
+        return fpos[np.logical_and(fpos.x >= 0, fpos.y >= 0)]
+
+    flat_xy = cached(circuit, flatmap_positions)
+    if target is not None or sample is not None:
+        gids = get_cell_ids(circuit, target, sample)
+        in_target = flat_xy.reindex(gids)
+    else:
+        in_target = flat_xy
+
+    assert in_target.index.name == "gid", in_target.index.name
+    LOG.info("DONE getting flatmap")
+    return in_target.dropna() if dropna else in_target
 
 
 def flatmap_hexbin(circuit, radius=10, gridsize=120, sample=None):
@@ -86,13 +144,16 @@ def generate_subtargets(circuit, flatmap=None, radius=None, size=None,
     ~            subtarget_name : a pretty name for the subtarget.
     Values : lists of gids
     """
+    assert radius or size, "Need one to define subtargets."
+    assert not (radius and size), "Cannot yet use both to define subtargets"
+
     if size:
         radius, stats = binsearch_radius(circuit, subtarget_size=size,
                                          get_subtargets_for_radius=(
                                              lambda radius: generate_subtargets(circuit, flatmap, radius,
                                                                                 target=target, sample=sample,
                                                                                 naming_scheme=naming_scheme)),
-                                         lower_bound=1., upper_bound=120., tolerance=None,
+                                         lower_bound=1., upper_bound=6000., tolerance=None,
                                          sample_frac=sample)
         return (radius,
                 generate_subtargets(circuit, flatmap, radius=radius, size=None,
@@ -107,12 +168,8 @@ def generate_subtargets(circuit, flatmap=None, radius=None, size=None,
     if naming_scheme:
         raise NotImplementedError("TODO")
 
-    LOG.info("GET cell positions")
-    positions = get_cell_positions(circuit, target, sample)
-    LOG.info("DONE %s cell positions", positions.shape[0])
-
     LOG.info("GET flatmap positions")
-    flatmap = get_flatmap(circuit, positions)
+    flatmap = get_flatmap(circuit, target, sample)
     LOG.info("DONE %s flatmap positions", flatmap.shape[0])
 
     tritilling = TriTille(radius)
@@ -128,7 +185,7 @@ def generate_subtargets(circuit, flatmap=None, radius=None, size=None,
     annotated_grid = grid.assign(subtarget=annotation.loc[grid.index])
     LOG.info("DONE %s annotations", annotation.shape[0])
 
-    return gids_by_gridpoint.join(annotated_grid).reset_index().set_index("subtarget")
+    return (radius, gids_by_gridpoint.join(annotated_grid).reset_index().set_index("subtarget"))
 
 
 def get_statistics(circuit, radius, sample_frac=None):
@@ -160,15 +217,15 @@ def binsearch_radius(circuit, subtarget_size=30000, get_subtargets_for_radius=No
                      n_iter=0):
     """..."""
     lower_bound = lower_bound or 1.
-    upper_bound = upper_bound or 120
+    upper_bound = upper_bound or 6000
 
     mean_radius = (lower_bound + upper_bound) / 2.
 
     if not get_subtargets_for_radius:
-        subtargets = generate_subtargets(circuit, radius=mean_radius,
-                                         sample=sample_frac)
+        _, subtargets = generate_subtargets(circuit, radius=mean_radius,
+                                            sample=sample_frac)
     else:
-        subtargets = get_subtargets_for_radius(mean_radius)
+        _, subtargets = get_subtargets_for_radius(mean_radius)
 
     subtarget_sizes = (subtargets.groupby("subtarget").agg("size")
                        / (1. if not sample_frac else sample_frac))
@@ -230,7 +287,7 @@ class SubtargetConfig:
 
         return circuit
 
-    @property
+    @lazy
     def input_circuit(self):
         """..."""
         input = self._config["paths"]
@@ -259,7 +316,7 @@ class SubtargetConfig:
 
         return circuit.atlas.load_data("flatmap")
 
-    @property
+    @lazy
     def input_atlas(self):
         """..."""
         try:
@@ -268,7 +325,7 @@ class SubtargetConfig:
             return self.input_circuit.atlas
         return {label: circuit.atlas for label, circuit in circuits()}
 
-    @property
+    @lazy
     def default_flatmap(self):
         """..."""
         try:
@@ -277,7 +334,7 @@ class SubtargetConfig:
             return self.input_atlas.load_data("flatmap")
         return {circuit: atlas.load_data("flatmap") for circuit, atlas in atlases()}
 
-    @property
+    @lazy
     def input_flatmap(self):
         """..."""
         input = self._config["paths"]
@@ -304,24 +361,47 @@ class SubtargetConfig:
         return {c: self.resolve_flatmap_circuit(labeled=c, nrrd=flatmap.get(c, None))
                 for c in self.input_circuit.keys()}
 
-    @property
+    @lazy
     def mean_target_size(self):
         """..."""
-        return self.parameters.get("mean_target_size", 31000)
+        try:
+            value = self.parameters["mean_target_size"]
+        except KeyError:
+            return None
 
-    @property
+        assert self.mean_target_radius is None,\
+            "Cannot set both radius and mean target size, only one."
+
+        return value
+
+    @lazy
+    def target_radius(self):
+        """For example, if using hexagons,
+        length of the side of the hexagon to tile with.
+        """
+        try:
+            value = self.parameters["radius"]
+        except KeyError:
+            return None
+
+        assert self.mean_target_size is None,\
+            "Cannot set both radius and mean target size, only one."
+
+        return value
+
+    @lazy
     def parameters(self):
         """..."""
         return self._config.get("parameters", {}).get(self.label, {})
 
-    @property
+    @lazy
     def tolerance(self):
         """Relative tolerance, a non-zero positive number less than 1 that determines
         the origin, rotation, and radius of the triangular tiling to use for binning.
         """
         return self.parameters.get("tolerance", None)
 
-    @property
+    @lazy
     def target(self):
         """..."""
         return self.parameters.get("base_target", None)
@@ -336,20 +416,19 @@ class SubtargetConfig:
         for label, circuit in circuits():
             yield (label, circuit, self.input_flatmap[label])
 
-    @property
+    @lazy
     def output(self):
         """..."""
         return self._config["paths"]["defined_columns"]
 
-    @property
+    @lazy
     def fmt_dataframe(self):
         """Specify whether
         wide : gids be in lists per row, or
         long : one gid per row
         """
-        fmt = self.parameters.get("format", "long")
+        fmt = self.parameters.get("format", "wide")
         assert fmt in ("wide", "long")
-
         return fmt
 
 
@@ -364,10 +443,11 @@ def define_subtargets(config, sample_frac=None, format=None):
         """..."""
         LOG.info("GENERATE subtargets for circuit %s", label)
         _, _subtargets = generate_subtargets(circuit, flatmap,
+                                             radius=config.target_radius,
                                              size=config.mean_target_size,
                                              target=config.target,
                                              sample=sample_frac)
-        LOG.info("DONE subtargets for circuit %s", label)
+        LOG.info("DONE %s subtargets for circuit %s", _subtargets.shape[0], label)
         subtargets = _subtargets.assign(circuit=label) if label else _subtargets
         return subtargets.rename(columns={"x": "flat_x", "y": "flat_y"})
 

@@ -19,8 +19,7 @@ from bluepy import Cell, Circuit
 from bluepy.exceptions import BluePyError
 
 
-LOG = logging.getLogger("Tessellate-2D with triangles.")
-LOG.setLevel(os.environ.get("LOGLEVEL", "INFO"))
+LOG = logging.getLogger("Flatmap Utility")
 
 
 def P(x, y):
@@ -222,11 +221,11 @@ class TriTille:
     def transform(self, xys):
         """Transform (x, y) positions to (u, v) axii.
         """
-        relpos = self.relative(xys)
+        relpos = self.relative(xys) / self._ratio
 
         u = relpos.x - relpos.y
         v = relpos.x + relpos.y
-        return Frame2D(u=u, v=v) / self._ratio
+        return Frame2D(u=u, v=v)#/ self._ratio
 
     def reverse_transform(self, uvs):
         """Transform (u, v) positions to (x, y).
@@ -361,7 +360,7 @@ class TriTille:
         hmax = height + self._origin[1] + 1
         imax = int(hmax / (self._ratio[0] * self._side / 2.))
         vi_outside_grid = [i for i in range(-imax, imax)
-                          if not draw_vaxis(i, **kwargs.get("draw_vaxis", {}))]
+                           if not draw_vaxis(i, **kwargs.get("draw_vaxis", {}))]
         LOG.info("Lines along the v-axis that didn't fit the window: %s / %s",
                     len(vi_outside_grid), (2 * imax))
         LOG.info("\t: %s", vi_outside_grid)
@@ -388,37 +387,38 @@ class TriTille:
         LOG.info("\t: %s", rxj_outside_grid)
         return graphic
 
-    def bin_trinagularly(self, xys):
+    def bin_rhombically(self, xys):
         """..."""
         uvs = self.transform(xys)
         scaled_u = np.array(np.floor(uvs.u.values / self._side), dtype=int)
         scaled_v = np.array(np.floor(uvs.v.values / self._side), dtype=int)
         return Frame2D(i=scaled_u, j=scaled_v, dtype=int, index=xys.index)
 
-    def map_to_hexagonal(self, triangular_bins, using_scaled_x):
+    def bin_trinagularly(self, xys):
         """..."""
-        ijs = triangular_bins; sx = using_scaled_x
+        ijs = self.bin_rhombically(xys)
+
+        rxys = self.relative(xys)
+        x = rxys["x"].values
+        dx = self._ratio[0] * self._side
+        x0 = (ijs.i.values + ijs.j.values) * dx / 2
+        scaled_x = (x - x0) / dx
+
+        correction = np.zeros(xys.shape[0])
+        correction[scaled_x >= 0.5] = 1
+
+        return Frame2D(i=(ijs.i.values + correction), j=(ijs.j.values + correction),
+                       dtype=int, index=xys.index)
+
+    def map_to_hexagonal(self, triangular_bins):
+        """..."""
+        ijs = triangular_bins
         N = ijs.shape[0]
-        assert len(sx) == N
 
         n = (ijs["j"] -  ijs["i"]).mod(3)
 
-        is_mod0 = n == 0
         is_mod1 = n == 1
         is_mod2 = n == 2
-
-        i_correction_0 = np.zeros(N)
-        i_correction_0[sx < 0.5] = 0
-        i_correction_0[sx >= 0.5] = 1
-        i_correction_0[~is_mod0] = 0
-
-        j_correction_0 = np.zeros(N)
-        j_correction_0[sx < 0.5] = 0
-        j_correction_0[sx >= 0.5] = 1
-        j_correction_0[~is_mod0] = 0
-
-        correction_0 = Frame2D(i=i_correction_0, j=j_correction_0,
-                               index=ijs.index, dtype=int)
 
         i_correction_1 = np.zeros(N)
         i_correction_1[is_mod1] = 1
@@ -430,19 +430,27 @@ class TriTille:
         correction_2 = Frame2D(i=0, j=j_correction_2,
                                index=ijs.index, dtype=int)
 
-        return ijs + correction_0 + correction_1 + correction_2
+        return ijs + correction_1 + correction_2
 
     def bin_hexagonally(self, xys, use_columns_row_indexing=False):
         """..."""
-        rxys = self.relative(xys)
-        ijs = self.bin_trinagularly(xys)
+        ijs = self.bin_rhombically(xys)
 
+        rxys = self.relative(xys)
         x = rxys["x"].values
         dx = self._ratio[0] * self._side
-        x0 = (ijs.i + ijs.j).values + dx / 2
+        x0 = (ijs.i.values + ijs.j.values) * dx / 2
+        scaled_x = (x - x0) / dx
 
-        hijs = self.map_to_hexagonal(triangular_bins = ijs,
-                                     using_scaled_x= (x - x0) / dx)
+        centers = (ijs["j"] -  ijs["i"]).mod(3) == 0
+        correction = np.zeros(xys.shape[0])
+        correction[scaled_x >= 0.5] = 1
+        correction[~centers] = 0
+
+        ijs = Frame2D(i=(ijs.i+correction), j=(ijs.j+correction),
+                      dtype=int, index=ijs.index)
+
+        hijs = self.map_to_hexagonal(triangular_bins=ijs)
 
         if not use_columns_row_indexing:
             return hijs
@@ -469,7 +477,7 @@ class TriTille:
         uvs = self._side * bins.rename(columns={"i": "u", "j": "v"})
         xys = self.reverse_transform(uvs)
         xys.index = pd.MultiIndex.from_frame(bins)
-        return self.untranslate(self.unrotate(xys))
+        return xys
 
     def annotate(self, gridpoints, using_column_row=False):
         """Annotate a gridpoints (x, y) in a dataframe indexed by their indices (i, j)
@@ -486,16 +494,20 @@ class TriTille:
 
     def locate_grid(self, bins):
         """..."""
-        return self.locate(bins.drop_duplicates().reset_index(drop=True))
+        grid_points = self.locate(bins.drop_duplicates().reset_index(drop=True))
+        return grid_points
 
     def plot_hextiles(self, positions, bins=None, graphic=None,
-                      annotate=None):
+                      annotate=True, with_grid=True,
+                      pointmarker="o", pointmarkersize=20,):
         """
         TODO: Annotate trigrid.
         """
-        assert annotate in (None, "hexgrid", "colrow")
+        if annotate is True:
+            annotate = "colrow"
+        assert not annotate or annotate in ("hexgrid", "colrow")
 
-        tiles = (self.binhex(positions, use_columns_row_indexing=False)
+        tiles = (self.bin_hexagonally(positions, use_columns_row_indexing=False)
                  if bins is None else bins)
 
         if graphic is None:
@@ -504,7 +516,7 @@ class TriTille:
         else:
             figure, axes = graphic
 
-        cr_tiles = self.index_as_column_row(tiles)
+        cr_tiles = self.index_with_column_row(tiles)
         even_col = np.array(cr_tiles.col.mod(2) == 0, dtype=bool)
         even_row = np.array(cr_tiles.row.mod(2) == 0, dtype=bool)
 
@@ -512,15 +524,18 @@ class TriTille:
         colors_index = 2 * even_col + even_row
         colors = palette[colors_index]
 
-        plt.scatter(positions["x"], positions["y"], c=colors, s=20, marker="o")
+        plt.scatter(positions["x"], positions["y"],
+                    c=colors, marker=pointmarker, s=pointmarkersize)
 
-        grid = self.locate_grid(tiles)
+        if with_grid:
 
-        plt.scatter(grid["x"], grid["y"], c="red", s=80)
+            grid = self.locate_grid(tiles)
+
+            plt.scatter(grid["x"], grid["y"], c="black", s=80)
 
         if annotate:
 
-            annotate = self.annotate(grid)
+            annotate = self.annotate(grid, using_column_row=(annotate=="colrow"))
             for row in grid.assign(annotation=annotate).itertuples():
                 axes.annotate(row.annotation, (row.x - 6, row.y + 5),
                               fontsize=20)
