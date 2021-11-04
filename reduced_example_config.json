@@ -57,27 +57,14 @@
       ]
     },
     "randomize_connectivity": {
-      "algorithms": [
-        {
-          "algorithm": "block_randomized",
-          "parameters": {
-            "blocks": "layer"
-          },
-          "name": "block_layer"
-        },
-        {
-          "algorithm": "block_randomized",
-          "parameters": {
-            "blocks": "m-type"
-          },
-          "name": "block_mtype"
-        },
-        {
-          "algorithm": "erdos_renyi",
-          "parameters": {},
-          "name": "ER"
+      "algorithms": {
+        "example1_params1":{
+          "source": "algorithm1",
+          "args": [],
+          "kwargs": {"layer": 5, "mtype": "L5_TPC:A"},
+          "name": "example"
         }
-      ]
+      }
     }
   }
 }

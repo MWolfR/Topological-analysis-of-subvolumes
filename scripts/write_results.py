@@ -65,6 +65,23 @@ def write_toc_plus_payload(extracted, to_path, format=None):
     write(toc, (path_hdf_store, group_identifier_toc), format=format)
 
 
+class LazyMatrix:
+    """..."""
+    from lazy import lazy
+    def __init__(self, path_hdf, path_dset):
+        """..."""
+        self._hdf = path_hdf
+        self._dset = path_dset
+
+    @lazy
+    def matrix(self):
+        """..."""
+        with h5py.File(self._hdf, 'r') as hdf:
+            dset = hdf[self._dset]
+            matrix = read_sparse_matrix_payload(dset)
+        return matrix
+
+
 def read_toc_plus_payload(path, for_step):
     path_hdf_store, group_identifier = path
     group_identifier_toc = group_identifier + "/toc"
@@ -74,9 +91,12 @@ def read_toc_plus_payload(path, for_step):
                            f"Run {for_step} step with config that sets outputs to HDF first.")
 
     toc = pd.read_hdf(path_hdf_store, key=group_identifier_toc)
+
+    return toc.apply(lambda dset_path: LazyMatrix(path_hdf_store, dset_path))
+
     h5 = h5py.File(path_hdf_store)
 
-    class LazyMatrix():
+    class LazyMatrixMR:
         from lazy import lazy
 
         def __init__(self, h5, dset_path):
@@ -87,10 +107,11 @@ def read_toc_plus_payload(path, for_step):
             return read_sparse_matrix_payload(self.dset)
 
     def read_matrix(dset_path):
-        return LazyMatrix(h5, dset_path)
+        return LazyMatrixMR(h5, dset_path)
 
     matrices = toc.apply(read_matrix)
-    return matrices
+    return (h5, matrices)
+
 
 
 def read(path, for_step):

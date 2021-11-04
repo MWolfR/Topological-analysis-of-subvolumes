@@ -499,7 +499,7 @@ class TriTille:
 
     def plot_hextiles(self, positions, bins=None, graphic=None,
                       annotate=True, with_grid=True,
-                      pointmarker="o", pointmarkersize=20,):
+                      pointcolor=None, pointmarker="o", pointmarkersize=20,):
         """
         TODO: Annotate trigrid.
         """
@@ -516,13 +516,16 @@ class TriTille:
         else:
             figure, axes = graphic
 
-        cr_tiles = self.index_with_column_row(tiles)
-        even_col = np.array(cr_tiles.col.mod(2) == 0, dtype=bool)
-        even_row = np.array(cr_tiles.row.mod(2) == 0, dtype=bool)
+        if pointcolor is None:
+            cr_tiles = self.index_with_column_row(tiles)
+            even_col = np.array(cr_tiles.col.mod(2) == 0, dtype=bool)
+            even_row = np.array(cr_tiles.row.mod(2) == 0, dtype=bool)
 
-        palette = np.array(["red", "green", "blue", "orange"])
-        colors_index = 2 * even_col + even_row
-        colors = palette[colors_index]
+            palette = np.array(["red", "green", "blue", "orange"])
+            colors_index = 2 * even_col + even_row
+            colors = palette[colors_index]
+        else:
+            colors = pointcolor
 
         plt.scatter(positions["x"], positions["y"],
                     c=colors, marker=pointmarker, s=pointmarkersize)
