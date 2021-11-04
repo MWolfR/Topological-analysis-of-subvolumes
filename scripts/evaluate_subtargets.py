@@ -132,3 +132,9 @@ def main(fn_cfg):
     metrics = cfg.get("metrics", [])
     extracted = perform_evaluations(neurons, metrics, circuits)
     write(extracted, to_path=paths.get("tgt_evaluations", default_hdf("tgt_evaluations")), format="table")
+
+
+if __name__ == "__main__":
+    import sys
+    main(sys.argv[1])
+
