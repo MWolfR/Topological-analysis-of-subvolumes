@@ -94,25 +94,6 @@ def read_toc_plus_payload(path, for_step):
 
     return toc.apply(lambda dset_path: LazyMatrix(path_hdf_store, dset_path))
 
-    h5 = h5py.File(path_hdf_store)
-
-    class LazyMatrixMR:
-        from lazy import lazy
-
-        def __init__(self, h5, dset_path):
-            self.dset = h5[dset_path]
-
-        @lazy
-        def matrix(self):
-            return read_sparse_matrix_payload(self.dset)
-
-    def read_matrix(dset_path):
-        return LazyMatrixMR(h5, dset_path)
-
-    matrices = toc.apply(read_matrix)
-    return (h5, matrices)
-
-
 
 def read(path, for_step):
     """Read dataset extracted for a pipeline step from path to the dataset.
