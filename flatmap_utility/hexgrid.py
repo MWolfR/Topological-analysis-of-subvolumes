@@ -1,24 +1,18 @@
 """Bin cell flatmap positions in a hexagonal grid.
 """
-import os
-from collections.abc import Mapping
-from pathlib import Path
-import logging
-from lazy import lazy
 
 import pandas as pd
 import numpy as np
 
-from voxcell.voxel_data import VoxelData
-from bluepy import Cell, Circuit
-from bluepy.exceptions import BluePyError
+from bluepy import Cell
 
 from .tessellate import TriTille
 import flatmap_utility as flattened
 
 XYZ = [Cell.X, Cell.Y, Cell.Z]
 
-LOG = logging.getLogger("Flatmap Utility")
+from .io import logging
+LOG = logging.get_logger("Flatmap Utility")
 
 
 def get_cell_ids(circuit, target=None, sample=None):
@@ -63,20 +57,11 @@ def cached(circuit, method):
 
 def flatmap_positions(circuit):
     """..."""
-    LOG.info("GET flatmap from the atlas.")
     flatmap = circuit.atlas.load_data("flatmap")
-    LOG.info("DONE flatmap from the atlas.")
-
-    LOG.info("GET orientations from the atlas.")
     orientations = circuit.atlas.load_data("orientation")
-    LOG.info("DONE orientations from the atlas.")
-
-    LOG.info("GET supersampled flatmap")
-    flatxy = (flattened
-              .supersampled_neuron_locations(circuit, flatmap, orientations)
-              .rename(columns={"flat x": "x", "flat y": "y"}))
-    LOG.info("DONE supersampled flatmap")
-    return flatxy
+    return (flattened
+            .supersampled_neuron_locations(circuit, flatmap, orientations)
+            .rename(columns={"flat x": "x", "flat y": "y"}))
 
 
 def get_flatmap(circuit, target=None, sample=None, subpixel=True, dropna=True):
@@ -147,13 +132,16 @@ def generate_subtargets(circuit, flatmap=None, radius=None, size=None,
     assert radius or size, "Need one to define subtargets."
     assert not (radius and size), "Cannot yet use both to define subtargets"
 
+    def for_radius(r):
+        """..."""
+        return generate_subtargets(circuit, flatmap, r, target=target,
+                                   sample=sample, naming_scheme=naming_scheme)
+
     if size:
         radius, stats = binsearch_radius(circuit, subtarget_size=size,
-                                         get_subtargets_for_radius=(
-                                             lambda radius: generate_subtargets(circuit, flatmap, radius,
-                                                                                target=target, sample=sample,
-                                                                                naming_scheme=naming_scheme)),
-                                         lower_bound=1., upper_bound=6000., tolerance=None,
+                                         get_subtargets_for_radius=for_radius,
+                                         lower_bound=1., upper_bound=6000.,
+                                         tolerance=None,
                                          sample_frac=sample)
         return (radius,
                 generate_subtargets(circuit, flatmap, radius=radius, size=None,
@@ -185,7 +173,11 @@ def generate_subtargets(circuit, flatmap=None, radius=None, size=None,
     annotated_grid = grid.assign(subtarget=annotation.loc[grid.index])
     LOG.info("DONE %s annotations", annotation.shape[0])
 
-    return (radius, gids_by_gridpoint.join(annotated_grid).reset_index().set_index("subtarget"))
+    annotated = (gids_by_gridpoint.join(annotated_grid)
+                 .reset_index().set_index("subtarget"))
+
+    return (radius, annotated)
+
 
 
 def get_statistics(circuit, radius, sample_frac=None):
@@ -251,185 +243,6 @@ def binsearch_radius(circuit, subtarget_size=30000, get_subtargets_for_radius=No
                             tolerance = tolerance,
                             sample_frac = sample_frac,
                             n_iter = n_iter + 1)
-
-
-
-class SubtargetConfig:
-    """..."""
-
-    label = "define_subtargets"
-
-    @staticmethod
-    def read_json(path, reader):
-        """..."""
-        try:
-            path = Path(path)
-        except TypeError:
-            return path
-
-        config = reader.read(path)
-        return config
-
-    def __init__(self, config, reader=None):
-        """..."""
-        config = self.read_json(config, reader)
-        assert isinstance(config, Mapping)
-
-        self._config = config
-
-    @staticmethod
-    def load_circuit(config):
-        """..."""
-        try:
-            circuit = Circuit(config)
-        except BluePyError:
-            circuit = config
-
-        return circuit
-
-    @lazy
-    def input_circuit(self):
-        """..."""
-        input = self._config["paths"]
-
-        input_circuit = input["circuit"]
-        try:
-            configs = input_circuit.items
-        except AttributeError:
-            config = input_circuit
-            return self.load_circuit(config)
-        return {label: self.load_circuit(config) for label, config in configs()}
-
-    def resolve_flatmap_circuit(self, labeled=None, nrrd=None):
-        """Load flatmap by circuit label.
-        labeled : label of a circuit.
-        ~         Use None if config specifies a Circuit, not Mapping<label -> circuit>
-        """
-        if nrrd:
-            return VoxelData.load_nrrd(nrrd)
-
-        if labeled:
-            assert isinstance(self.input_circuit, Mapping)
-            circuit = self.input_circuit[labeled]
-        else:
-            circuit = self.input_circuit
-
-        return circuit.atlas.load_data("flatmap")
-
-    @lazy
-    def input_atlas(self):
-        """..."""
-        try:
-            circuits = self.input_circuit.items
-        except AttributeError:
-            return self.input_circuit.atlas
-        return {label: circuit.atlas for label, circuit in circuits()}
-
-    @lazy
-    def default_flatmap(self):
-        """..."""
-        try:
-            atlases = self.input_atlas.items
-        except AttributeError:
-            return self.input_atlas.load_data("flatmap")
-        return {circuit: atlas.load_data("flatmap") for circuit, atlas in atlases()}
-
-    @lazy
-    def input_flatmap(self):
-        """..."""
-        input = self._config["paths"]
-
-        try:
-            flatmap = input["flatmap"]
-        except KeyError:
-            return self.default_flatmap
-
-        try:
-            flatmap_nrrd = Path(flatmap)
-        except TypeError:
-            pass
-        else:
-            flatmap = VoxelData.load_nrrd(flatmap_nrrd)
-            try:
-                circuits = self.input_circuits.keys
-            except AttributeError:
-                return flatmap
-            return {circuit: flatmap for circuit in circuits()}
-
-        assert isinstance(flatmap, Mapping)
-
-        return {c: self.resolve_flatmap_circuit(labeled=c, nrrd=flatmap.get(c, None))
-                for c in self.input_circuit.keys()}
-
-    @lazy
-    def mean_target_size(self):
-        """..."""
-        try:
-            value = self.parameters["mean_target_size"]
-        except KeyError:
-            return None
-
-        assert self.mean_target_radius is None,\
-            "Cannot set both radius and mean target size, only one."
-
-        return value
-
-    @lazy
-    def target_radius(self):
-        """For example, if using hexagons,
-        length of the side of the hexagon to tile with.
-        """
-        try:
-            value = self.parameters["radius"]
-        except KeyError:
-            return None
-
-        assert self.mean_target_size is None,\
-            "Cannot set both radius and mean target size, only one."
-
-        return value
-
-    @lazy
-    def parameters(self):
-        """..."""
-        return self._config.get("parameters", {}).get(self.label, {})
-
-    @lazy
-    def tolerance(self):
-        """Relative tolerance, a non-zero positive number less than 1 that determines
-        the origin, rotation, and radius of the triangular tiling to use for binning.
-        """
-        return self.parameters.get("tolerance", None)
-
-    @lazy
-    def target(self):
-        """..."""
-        return self.parameters.get("base_target", None)
-
-    def argue(self):
-        """..."""
-        try:
-            circuits = self.input_circuit.items
-        except AttributeError:
-            return ((self.input_circuit, self.input_flatmap))
-
-        for label, circuit in circuits():
-            yield (label, circuit, self.input_flatmap[label])
-
-    @lazy
-    def output(self):
-        """..."""
-        return self._config["paths"]["defined_columns"]
-
-    @lazy
-    def fmt_dataframe(self):
-        """Specify whether
-        wide : gids be in lists per row, or
-        long : one gid per row
-        """
-        fmt = self.parameters.get("format", "wide")
-        assert fmt in ("wide", "long")
-        return fmt
 
 
 def define_subtargets(config, sample_frac=None, format=None):

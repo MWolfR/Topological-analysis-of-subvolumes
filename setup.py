@@ -5,7 +5,6 @@ if sys.version_info < (3, 6):
     sys.exit("Sorry, Python < 3.6 is not supported.")
 
 
-
 setup(name="Topological Characterization",
       version="0.0.1",
       author="BBP",

@@ -1,18 +1,21 @@
 """Define flatmap column subtargets for a circuit.
 """
 import os
-import argparse
+from argparse import ArgumentParser
 import logging
 
-import read_config
-from write_results import write, default_hdf
-from flatmap_utility.hexgrid import SubtargetConfig, define_subtargets
+from .io import read_config
+from .io.write_results import write, default_hdf
+from .io.logging get_logger
 
+STEP = "define-subtargets"
+LOG = get_logger(STEP)
 
-LOG = logging.getLogger("Generate flatmap subtargets")
-LOG.setLevel(os.environ.get("LOGLEVEL", "INFO"))
 
 def main(args):
+    """Interpret `args` and launch."""
+    from flatmap_utility.hexgrid import SubtargetConfig, define_subtargets
+
     LOG.info("Get subtargets for %s", args)
 
     LOG.info("Load the config %s", args.config)
@@ -50,18 +53,19 @@ def main(args):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(format="%(asctime)s %(levelname)-8s %(message)s",
-                        level=logging.INFO,
-                        datefmt="%Y-%m-%d %H:%M:%S")
-    parser = argparse.ArgumentParser(description="Generate flatmap columnar sub-targets.")
+    parser = ArgumentParser(description="Generate flatmap columnar sub-targets.")
 
-    parser.add_argument("config", help="Path to the configuration to generate sub-targets")
+    parser.add_argument("config",
+                        help="Path to the configuration to generate sub-targets")
 
-    parser.add_argument("-s", "--sample", help="A float to sample with", default=None)
+    parser.add_argument("-s", "--sample",
+                        help="A float to sample with", default=None)
 
-    parser.add_argument("-f", "--format", help="Format for annotating the columns.", default=None)
+    parser.add_argument("-f", "--format",
+                        help="Format for annotating the columns.", default=None)
 
-    parser.add_argument("-o", "--output", help="Path to the directory to output in.", default=None)
+    parser.add_argument("-o", "--output",
+                        help="Path to the directory to output in.", default=None)
 
     args = parser.parse_args()
 
