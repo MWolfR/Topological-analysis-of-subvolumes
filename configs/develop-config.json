@@ -21,8 +21,7 @@
   "parameters": {
     "define_subtargets": {
       "mean_target_size": 31000,
-      "base_target": "Mosaic",
-      "format": "wide"
+      "base_target": "Mosaic"
     },
     "extract_neurons": {
       "properties": [

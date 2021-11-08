@@ -108,7 +108,30 @@ def name_subtarget(hexbin):
     return f"R{hexbin.row};C{hexbin.col}"
 
 
-def generate_subtargets(circuit, flatmap=None, radius=None, size=None,
+def generate_subtargets(of_radius, in_circuit, with_flatmap=None,
+                        base_target=None,
+                        origin=None, angle=None):
+    """"Generate subtargets of a base target in a circuit's flatspace.
+    Each subtarget will flatmap to a tile in a grid of hexagons of given radius.
+
+    TODO: origin and angle: to add more freedom in localizing a hexagon to study.
+    """
+    if origin or angle:
+        raise NotImplementedError("TODO")
+
+
+    circuit = in_circuit
+    flatmap = with_flatmap or circuit.flatmap
+    tritille = TriTille(of_radius)
+    hexmap = tritille.bin_hexagonally(flatmap, use_columns_row_indexing=False)
+    grid = tritille.locate_grid(hexmap)
+    annotation = tritille.annotate(grid, using_column_row=True)
+    gids_by_gridpoint = hexmap.reset_index().set_index(["i", "j"])
+    annotated = grid.assign(subtarget=annotation.loc[grid.index])
+    return gids_by_gridpoint.join(annotated).reset_index().set_index("subtarget")
+
+
+def generate_subtargets_0(circuit, flatmap=None, radius=None, size=None,
                         target=None, sample=None,
                         naming_scheme=None):
     """...
@@ -155,29 +178,6 @@ def generate_subtargets(circuit, flatmap=None, radius=None, size=None,
 
     if naming_scheme:
         raise NotImplementedError("TODO")
-
-    LOG.info("GET flatmap positions")
-    flatmap = get_flatmap(circuit, target, sample)
-    LOG.info("DONE %s flatmap positions", flatmap.shape[0])
-
-    tritilling = TriTille(radius)
-
-    LOG.info("BIN into hexmap indices")
-    hexmap = tritilling.bin_hexagonally(flatmap, use_columns_row_indexing=False)
-    LOG.info("DONE %s hexmap indices", hexmap.shape[0])
-
-    grid = tritilling.locate_grid(hexmap)
-    LOG.info("ANNOTATE columns")
-    annotation = tritilling.annotate(grid, using_column_row=True)
-    gids_by_gridpoint = hexmap.reset_index().set_index(["i", "j"])
-    annotated_grid = grid.assign(subtarget=annotation.loc[grid.index])
-    LOG.info("DONE %s annotations", annotation.shape[0])
-
-    annotated = (gids_by_gridpoint.join(annotated_grid)
-                 .reset_index().set_index("subtarget"))
-
-    return (radius, annotated)
-
 
 
 def get_statistics(circuit, radius, sample_frac=None):
@@ -272,7 +272,8 @@ def define_subtargets(config, sample_frac=None, format=None):
         index_vars = ["subtarget", "flat_x", "flat_y"]
     else:
         arguments = list(config.argue())
-        subtargets = pd.concat([get(label=l, circuit=c, flatmap=f) for l, c, f in arguments])
+        subtargets = pd.concat([get(label=l, circuit=c, flatmap=f)
+                                for l, c, f in arguments])
         columns = ["circuit", "gid", "flat_x", "flat_y"]
         index_vars = ["circuit", "subtarget", "flat_x", "flat_y"]
 

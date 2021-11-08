@@ -6,7 +6,9 @@ import logging
 
 from .io import read_config
 from .io.write_results import write, default_hdf
-from .io.logging get_logger
+from .io.logging import get_logger
+from .subtargets.config import SubtargetsConfig
+from .subtargets import define as define_subtargets
 
 STEP = "define-subtargets"
 LOG = get_logger(STEP)
@@ -14,18 +16,9 @@ LOG = get_logger(STEP)
 
 def main(args):
     """Interpret `args` and launch."""
-    from flatmap_utility.hexgrid import SubtargetConfig, define_subtargets
 
-    LOG.info("Get subtargets for %s", args)
-
+    LOG.warning("Get subtargets for %s", args)
     LOG.info("Load the config %s", args.config)
-    config = SubtargetConfig(args.config, reader=read_config)
-
-    LOG.info("Compute sub-targets with:")
-    LOG.info("\tinput circuits %s: ", config.input_circuit)
-    LOG.info("\tinput flatmaps %s: ", config.input_flatmap.keys())
-    LOG.info("\tdesired mean number of cells in a column: %s", config.mean_target_size)
-    LOG.info("\toutput in format %s goes to %s", args.format, config.output)
 
     if args.sample:
         LOG.info("Sample a fraction %s of the cells", args.sample)
@@ -33,9 +26,7 @@ def main(args):
     else:
         sample = None
 
-    subtargets = define_subtargets(config, sample_frac=sample,
-                                   format=(args.format if args.format
-                                           else config.fmt_dataframe)
+    config = SubtargetsConfig(args.config)
 
     output = config.output
     if args.output:
@@ -45,10 +36,23 @@ def main(args):
             output = args.output
         else:
             output = (args.output, hdf_key)
+    LOG.info("Output in %s\n\t, group %s", output[0], output[1])
+
+    LOG.info("DISPATCH the definition of subtargets.")
+    if args.test:
+        LOG.info("TEST pipeline plumbing.")
+    else:
+        subtargets = define_subtargets(config, sample=sample, fmt="wide")
+        LOG.info("Done defining %s subtargets.", subtargets.shape)
 
     LOG.info("Write result to %s", output)
-    output = write(subtargets, to_path=(output or default_hdf("subtargets")))
-    LOG.info("DONE writing results to %s", output)
+    if args.test:
+        LOG.info("TEST pipeline plumbing.")
+    else:
+        output = write(subtargets, to_path=(output or default_hdf("subtargets")))
+        LOG.info("Done writing results to %s", output)
+
+    LOG.warning("DONE, defining subtargets.")
     return output
 
 
@@ -56,16 +60,18 @@ if __name__ == "__main__":
     parser = ArgumentParser(description="Generate flatmap columnar sub-targets.")
 
     parser.add_argument("config",
-                        help="Path to the configuration to generate sub-targets")
+                        help="Path to the configuration to run the pipeline.")
 
     parser.add_argument("-s", "--sample",
                         help="A float to sample with", default=None)
 
-    parser.add_argument("-f", "--format",
-                        help="Format for annotating the columns.", default=None)
-
     parser.add_argument("-o", "--output",
                         help="Path to the directory to output in.", default=None)
+
+    parser.add_argument("--dry-run", dest="test",  action="store_true"
+                        help=("Use this to test the pipeline's plumbing "
+                              "before running any juices through it."))
+    parser.set_default(test=False)
 
     args = parser.parse_args()
 

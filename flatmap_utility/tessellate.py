@@ -497,6 +497,20 @@ class TriTille:
         grid_points = self.locate(bins.drop_duplicates().reset_index(drop=True))
         return grid_points
 
+    def distribute(self, xys):
+        """Distribute flattened (x, y) over this hexagonal tiling.
+        Arguments
+        -----------
+        xys : pandas.DataFrame<x, y>
+        """
+        hexmap = self.bin_hexagonally(xys, use_columns_row_indexing=False)
+        grid = self.locate_grid(hexmap)
+        annotation = self.annotate(grid, using_column_row=True)
+        annotated = (grid.assign(subtarget=annotation.loc[grid.index])
+                     .rename(columns={"x": "grid_x", "y": "grid_y"}))
+        return (hexmap.reset_index().set_index(["i", "j"])
+                .join(annotated).reset_index().set_index("subtarget"))
+
     def plot_hextiles(self, positions, bins=None, graphic=None,
                       annotate=True, with_grid=True,
                       pointcolor=None, pointmarker="o", pointmarkersize=20,):
