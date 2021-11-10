@@ -229,5 +229,3 @@ def run(config, output=None, sample=None, dry_run=None, **kwargs):
 
     LOG.warning("DONE, defining subtargets.")
     return f"result saved at {output}"
-
-"""..."""

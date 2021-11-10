@@ -51,7 +51,7 @@ class Step(Runnable):
 
     def run(self, config, *args, **kwargs):
         """..."""
-        self._runner.run(config, *args, **kwargs)
+        return self._runner.run(config, *args, **kwargs)
 
     def check_state(self, pipeline):
         """Check where a pipeline is along the sequence of steps that define it."""
@@ -215,6 +215,8 @@ class TopologicalAnalysis:
             LOG.warning("DONE pipeline step %s: %s", step, result)
             self.state.complete[step] = result
 
-        LOG.warning("DONE running %s steps: %s", len(self.state.queue), self.state.queue)
+        LOG.warning("DONE running %s steps: ", len(self.state.complete))
+        for i, (step, result) in enumerate(self.state.complete.items()):
+            LOG.warning("\t(%s). %s: %s", i, step, result)
 
         return self.state

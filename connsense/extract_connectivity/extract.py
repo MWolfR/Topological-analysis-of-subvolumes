@@ -5,7 +5,8 @@ from scipy import sparse
 import pandas
 from tqdm import tqdm
 import bluepy
-from .io import logging
+
+from ..io import logging
 
 STEP = "extract-connectivity"
 LOG = logging.get_logger(STEP)
