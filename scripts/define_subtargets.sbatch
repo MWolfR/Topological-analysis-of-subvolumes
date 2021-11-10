@@ -5,7 +5,7 @@
 #SBATCH --exclusive
 #SBATCH --constraint=cpu
 #SBATCH --mem=0
-#SBATCH --partition=prod_small
+#SBATCH --partition=prod
 #SBATCH --account=proj83
 #SBATCH --output="topochar-%x-%j.out"
 #SBATCH --error="topochar-%x-%j.err"

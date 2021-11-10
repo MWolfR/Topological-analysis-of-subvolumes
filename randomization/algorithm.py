@@ -1,7 +1,7 @@
 """
 An algorithm to shuffle with.
 """
-
+from importlib import import_module
 
 class Algorithm:
     """..."""
@@ -19,6 +19,23 @@ class Algorithm:
         """..."""
         return self._name
 
+    def load_method(self, source):
+        """..."""
+        try:
+            module = import_module(source)
+        except ModuleNotFoundError:
+            pass
+        else:
+            self._module = module
+            return self._module.shuffle
+
+        try:
+            return source.shuffle
+        except AttributeError:
+            pass
+
+        raise TypeError(f"Cannot infer a method to shuffle in {source}")
+
     def shuffle(self, adjacency, node_properties=None, log_info=None):
         """..."""
         try:
@@ -29,13 +46,13 @@ class Algorithm:
         if node_properties is not None:
             assert node_properties.shape[0] == matrix.shape[0]
 
-        LOG.info("%sShuffle a matrix of shape %s ",
-                 "" if not log_info else log_info + ":\n\t",
-                 matrix.shape)
-        result = self._shuffle(matrix, node_properties,
-                               *self._args, **self._kwargs)
-        LOG.info("%sDONE shuffling a matrix of shape %s ",
-                 "" if not log_info else log_info + ":\n\t",
-                 matrix.shape)
+        return self._shuffle(matrix, node_properties,
+                             *self._args, **self._kwargs)
 
-        return result
+    @staticmethod
+    def from_config(description):
+        """Define an algorithm using a description provided in a
+        topology analysis config.
+        """
+        return Algorithm(description["name"], description["source"],
+                         description["args"], description["kwargs"])
