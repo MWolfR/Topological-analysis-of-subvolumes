@@ -5,7 +5,7 @@ from importlib import import_module
 
 class Algorithm:
     """..."""
-    def __init__(self, name, source, args=None, kwargs-None):
+    def __init__(self, name, source, args=None, kwargs=None):
         """Define an algorithm with its name, source code, and the args and kwargs
         needed to call it's `.shuffle` method
         """
