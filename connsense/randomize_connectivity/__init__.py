@@ -4,13 +4,16 @@ from collections.abc import Mapping
 from pathlib import Path
 from argparse import ArgumentParser
 
+import numpy as np
+import pandas as pd
+
 from randomization import Algorithm
 
 
 from ..io.write_results import (read as read_results,
-                               read_toc_plus_payload,
-                               write_toc_plus_payload,
-                               default_hdf)
+                                read_toc_plus_payload,
+                                write_toc_plus_payload,
+                                default_hdf)
 
 from ..io import read_config
 from ..io import logging
@@ -66,17 +69,17 @@ def run(config, *args, output=None, batch_size=None, sample=None,  dry_run=None,
         toc = read_toc_plus_payload((hdf_path, hdf_group), STEP).rename("matrix")
         LOG.info("Done reading %s table of contents for connectivity matrices",
                  toc.shape)
-        if sample:
-            S = np.float(sample)
-            toc = toc.sample(frac=S) if S < 1 else toc.sample(n=int(S))
-        parameters = config["parameters"].get("randomize_connectivity", {})
-        algorithms = {Algorithm.from_config(description)
-                      for _, description in parameters["algorithms"].items()}
 
     LOG.info("DISPATCH randomization of connecivity matrices.")
     if dry_run:
         LOG.info("TEST pipeline plumbing.")
     else:
+        if sample:
+            S = np.float(sample)
+            toc = toc.sample(frac=S) if S < 1 else toc.sample(n=int(S))
+        parameters = config["parameters"].get("randomize_connectivity", {})
+        algorithms = [Algorithm.from_config(description)
+                      for _, description in parameters["algorithms"].items()]
         randomized = randomize_table_of_contents(toc, neurons, algorithms,
                                                  batch_size)
         LOG.info("Done, randomizing %s matrices.", randomized.shape)

@@ -1,8 +1,9 @@
-"""ConnSense: An app to run connectome utility pipeline.
+"""ConnSense: An app to run connectome utility pipeline.
 """
 from argparse import ArgumentParser
 
-from ..import pipeline
+from connsense import pipeline
+from connsense.io import logging
 
 LOG = logging.get_logger("Toplogical analysis of flatmapped subtargets.")
 
@@ -36,10 +37,10 @@ if __name__ == "__main__":
     parser.add_argument("--sample",
                         help="A float to sample subtargets with", default=None)
 
-    parser.add_argument("--dry-run", dest="test",  action="store_true"
+    parser.add_argument("--dry-run", dest="test",  action="store_true",
                         help=("Use this to test the pipeline's plumbing "
                               "before running any juices through it."))
-    parser.set_default(test=False)
+    parser.set_defaults(test=False)
 
     args = parser.parse_args()
 

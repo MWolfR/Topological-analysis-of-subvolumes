@@ -28,14 +28,16 @@ def randomize_table_of_contents(toc, using_neuron_properties,
     """..."""
     N = toc.shape[0]
 
-    LOG.info("Randomize %s subtargets using  %s.", N, [a.name for a in algorithms])
+    LOG.info("Randomize %s subtargets using  %s.",
+             N, [a.name for a in applying_algorithms])
 
     neurons = using_neuron_properties
     algorithms = applying_algorithms
     batch_size = with_batches_of_size or int(N / (n-1)) + 1
 
     batched = (toc.to_frame()
-               .assign(batch=np.array(np.floor(np.arange(N) / batch_size), dtype=int)))
+               .assign(batch=np.array(np.floor(np.arange(N) / batch_size),
+                                      dtype=int)))
 
     n_algos = len(algorithms)
     n_batches = batched.batch.max() + 1
@@ -62,7 +64,8 @@ def randomize_table_of_contents(toc, using_neuron_properties,
 
                 return algorithm.shuffle(r.matrix, get_neurons(r), log_info)
 
-            return batch.assign(idx=range(batch.shape[0])).apply(shuffle_row, axis=1)
+            return (batch.assign(idx=range(batch.shape[0])).apply(shuffle_row, axis=1)
+                    .rename("matrix"))
 
         randomized = pd.concat([shuffle(a, i) for i, a in enumerate(algorithms)],
                                axis=0, keys=[a.name for a in algorithms],
