@@ -52,6 +52,29 @@ def write(analyzed, to_path, format="table"):
     return (write_dataframe(dataframes, to_path=(hdf_path, hdf_group), format=format),
             write_toc_plus_payload(matrices, to_path(hdf_path, f"{hdf_group}/matrices")))
 
+def subset_subtargets(original, randomized, sample):
+    """..."""
+    if not sample:
+        return (original, randomized)
+
+    S = np.float(sample)
+    if S > 1:
+        subset = original.sample(n=int(S))
+    elif S > 0:
+        subset = original.sample(n=S)
+    else:
+        raise ValueError(f"Illegal sample={sample}")
+
+    selection = subset.index
+
+    def get_one(algorithm, randmats):
+        """..."""
+        randmats = randmats.droplevel("algorithm")
+        return pd.concat([randmats.droplevel("algorithm").loc[selection]],
+                         keys=[algorithm], names=["algorithm"])
+    return (subset,
+            pd.concat([get_one(a, r) for a, r in randomized.groupby("algorithm")]))
+
 
 def run(config, *args, output=None, batch_size=None, sample=None,  dry_run=None,
         **kwargs):
@@ -105,17 +128,14 @@ def run(config, *args, output=None, batch_size=None, sample=None,  dry_run=None,
     if dry_run:
         LOG.info("TEST pipeline plumbing")
     else:
-        if sample:
-            S = np.float(sample)
-            toc_orig_sample = toc_orig.sample(frac=S) if S < 1 else toc.sample(n=int(S))
-            sample = toc_orig_sample.index
-
         parameters = config["parameters"].get("analyze_connectivity", {})
         analyses = [Analysis.from_config(description)
                     for _, description in parameters[STEP].items()]
 
-        analyzed = analyze_table_of_contents(toc_orig, toc_rand, neurons, analyses, sample,
-                                              batch_size)
+        toc_orig_dispatch, toc_rand_dispatch = subset_subtargets(toc_orig, toc_rand, sample)
+        analyzed = analyze_table_of_contents(toc_orig_dispatch, toc_rand_dispatch, neurons,
+                                             analyses, sample,
+                                             batch_size)
         LOG.info("Done, analyzing %s matrices.", sample.shape[0])
 
 

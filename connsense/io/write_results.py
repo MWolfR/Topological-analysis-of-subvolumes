@@ -117,6 +117,28 @@ def read(path, for_step):
     return pd.read_hdf(path_hdf_store, key=group_identifier)
 
 
+def read_subtargets(path):
+    """..."""
+    try:
+        root, group = path
+    except KeyError:
+        root = path
+        group = "define-subtargets"
+    return read((root, group), for_step="define-subtargets")
+
+
+def read_node_properties(path):
+    """
+    TODO: allow flat_x, flat_y in index.
+    """
+    root, group = path
+
+    return (read((root, group), "neurons")
+            .droplevel(["flat_x", "flat_y"])
+            .reset_index()
+            .set_index(["circuit", "subtarget"]))
+
+
 def resolve_output_between(argued, and_configured):
     """
     If a valid value is passed in arguments from CLI, use that one instead

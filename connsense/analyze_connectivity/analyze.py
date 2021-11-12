@@ -5,6 +5,7 @@ from multiprocessing import Process, Manager
 import numpy as np
 import pandas as pd
 
+from analysis import  Analysis
 from ..io.write_results import (read as read_results)
 from ..io import logging
 
@@ -26,10 +27,13 @@ def analyze_table_of_contents(toc_original, toc_randomized,
                               sample=None, with_batches_of_size=None, ncores=72):
 
     """..."""
-    toc_orig = (toc_original if sample is None else
-                toc_original.loc[sample].rename("original"))
-    toc_rand = (toc_randomized if sample is None else
-                toc_randomized.loc[sample].rename("randomized"))
+    LOG.info("Analyze connectivity: %s / %s", sample.shape[0], toc_original.shape[0])
+
+    toc_orig = toc_original if sample is None else toc_original.loc[sample]
+    toc_orig = toc_orig.rename("original")
+    toc_rand = toc_randomized if sample is None else toc_randomized.loc[sample]
+    toc_rand = toc_rand.rename("randomized")
+
     N = toc_orig.shape[0]
 
     LOG.info("Analyze %s subtargets using  %s.", N, [a.name for a in applyi])

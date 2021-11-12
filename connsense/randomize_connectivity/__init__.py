@@ -34,6 +34,19 @@ def read(config):
     return  read_config.read(path)
 
 
+def get_algorithms(config):
+    """..."""
+    all_parameters = config["parameters"]
+
+    randomize_params = all_parameters[STEP]
+
+    configured = randomize_params["algorithms"]
+
+    LOG.warning("configured algorithms %s", configured )
+
+    return [Algorithm.from_config(description) for _, description in configured.items()]
+
+
 def run(config, *args, output=None, batch_size=None, sample=None,  dry_run=None,
         **kwargs):
     """..."""
@@ -77,9 +90,7 @@ def run(config, *args, output=None, batch_size=None, sample=None,  dry_run=None,
         if sample:
             S = np.float(sample)
             toc = toc.sample(frac=S) if S < 1 else toc.sample(n=int(S))
-        parameters = config["parameters"].get("randomize_connectivity", {})
-        algorithms = [Algorithm.from_config(description)
-                      for _, description in parameters["algorithms"].items()]
+        algorithms = get_algorithms(config)
         randomized = randomize_table_of_contents(toc, neurons, algorithms,
                                                  batch_size)
         LOG.info("Done, randomizing %s matrices.", randomized.shape)

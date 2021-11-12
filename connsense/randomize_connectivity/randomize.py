@@ -14,7 +14,9 @@ LOG = logging.get_logger(STEP)
 
 
 def get_neuron_properties(hdf_path, hdf_group):
-    """..."""
+    """
+    TODO: move this over to a common place.
+    """
     return (read_results((hdf_path, hdf_group), STEP)
             .droplevel(["flat_x", "flat_y"])
             .reset_index()
@@ -33,7 +35,7 @@ def randomize_table_of_contents(toc, using_neuron_properties,
 
     neurons = using_neuron_properties
     algorithms = applying_algorithms
-    batch_size = with_batches_of_size or int(N / (n-1)) + 1
+    batch_size = with_batches_of_size or int(N / (ncores-1)) + 1
 
     batched = (toc.to_frame()
                .assign(batch=np.array(np.floor(np.arange(N) / batch_size),

@@ -5,7 +5,10 @@ from abc import ABC, abstractmethod, abstractclassmethod, abstractstaticmethod
 from collections.abc import Mapping
 from collections import OrderedDict, namedtuple
 from pathlib import Path
+from lazy import lazy
 
+from .io import read_config
+from .io.write_results import read_toc_plus_payload, read_node_properties, read_subtargets
 from .io import logging
 
 LOG = logging.get_logger("pipeline.")
@@ -133,6 +136,127 @@ class Disbatch:
 
 
 
+class HDFStore:
+    """Handle the pipeline's data.
+    """
+    def __init__(self, root, groups):
+        """..."""
+        self._root = root
+        self._groups = groups
+
+    def get_path(self, step):
+        """..."""
+        return (self._root, self._groups[step])
+
+    @lazy
+    def columns(self):
+        """lists of gids for each subtarget column in the database."""
+        try:
+            return read_subtargets(self.get_path("define-subtargets"))
+        except (KeyError, FileNotFoundError):
+            return None
+
+    @lazy
+    def nodes(self):
+        """Subtarget nodes that have been saved to the HDf store."""
+        try:
+            return read_node_properties(self.get_path("extract-neurons"))
+        except (KeyError, FileNotFoundError):
+            return None
+
+    def _read_matrix_toc(self, step):
+        """Only for the steps that store connectivity matrices."""
+        return read_toc_plus_payload(self.get_path(step), step)
+
+    @lazy
+    def adjacency(self):
+        """Original connectivity of subtargets that have been saved to the HDF store."""
+        try:
+            return self._read_matrix_toc("extract-connectivity")
+        except (KeyError, FileNotFoundError):
+            return None
+
+    @lazy
+    def randomizations(self):
+        """Read randomizations."""
+        try:
+            return self._read_matrix_toc("randomize-connectivity")
+        except (KeyError, FileNotFoundError):
+            return None
+
+    @lazy
+    def analyses(self):
+        """A TOC for analyses results available in the HDF store."""
+        raise NotImplementedError
+
+    @lazy
+    def circuits(self):
+        """Available circuits for which subtargets have been computed."""
+        return self.columns.index.get_level_values("circuit").unique().to_list()
+
+
+    def get_subtargets(self, circuit):
+        """All subtargets defined for a circuit."""
+        if self.columns is None:
+            return None
+
+        columns = self.columns.xs(circuit, level="circuit")
+        return columns.index.get_level_values("subtarget").unique().to_list()
+
+    def get_nodes(self, circuit, subtarget):
+        """..."""
+        if self.nodes is None:
+            return None
+
+        level = ["circuit", "subtarget"]
+        query = [circuit, subtarget]
+        return self.nodes.xs(query, level=level)
+
+    def get_adjacency(self, circuit, subtarget, connectome):
+        """..."""
+        if self.adjacency is None:
+            return None
+
+        if connectome:
+            level = ["circuit", "connectome", "subtarget"]
+            query = [circuit, connectome, subtarget]
+        else:
+            level = ["circuit",  "subtarget"]
+            query = [circuit, subtarget]
+
+        adj = self.adjacency.xs(query, level=level)
+        if adj.shape[0] == 1:
+            return adj.iloc[0].matrix
+        return adj
+
+    def get_randomizations(self, circuit, subtarget, connectome, algorithms):
+        """..."""
+        if self.randomizations is None:
+            return None
+
+        if connectome:
+            level = ["circuit", "connectome", "subtarget"]
+            query = [circuit, connectome, subtarget]
+        else:
+            level = ["circuit",  "subtarget"]
+            query = [circuit, subtarget]
+
+        randomizations = self.randomizations.xs(query, level=level)
+
+        if not algorithms:
+            return randomizations
+
+        return randmomizations.loc[algorithms]
+
+    def get_data(self, circuit, subtarget, connectome=None, randomizations=None):
+        """Get available data for a subtarget."""
+        args = (circuit, subtarget)
+        return OrderedDict([("nodes", self.get_nodes(*args)),
+                            ("adjacency", self.get_adjacency(*args, connectome or "local")),
+                            ("randomizations", self.get_randomizations(*args, connectome, randomizations))])
+
+
+
 class TopologicalAnalysis:
     """..."""
     from connsense import define_subtargets
@@ -162,17 +286,15 @@ class TopologicalAnalysis:
         return OrderedDict([(step, to_take) for step, to_take in complete.sequence_of_steps
                             if step in configured_steps])
 
-
     @classmethod
-    def read(cls, config):
+    def read(cls, config, raw=False):
         """..."""
-        from .io import read_config
         try:
             path = Path(config)
         except TypeError:
             assert isinstance(config, Mapping)
             return config
-        return read_config.read(path)
+        return read_config.read(path, raw=raw)
 
     @classmethod
     def read_steps(cls, config):
@@ -183,15 +305,30 @@ class TopologicalAnalysis:
             configured = list(cls.__steps__.keys())
         return configured
 
-    def __init__(self, config, dispatcher=None):
+
+    def __init__(self, config, mode="inspect", dispatcher=None):
         """Read the pipeline steps to run from the config.
         """
+        assert mode in ("inspect", "run"), mode
+
         self._config = self.read(config)
+
+        config_raw = self.read(config, raw=True)
+        steps = config_raw["paths"]["steps"]
+        self._data = HDFStore(steps["root"], steps["groups"])
+
+        self._mode = mode
+
         self.configured_steps =  self.read_steps(self._config)
         self.state = PipelineState(complete=OrderedDict(),
                                    running=None,
                                    queue=self.configured_steps)
         self._dispatcher = dispatcher or Disbatch()
+
+    @property
+    def data(self):
+        """..."""
+        return self._data
 
     def dispatch(self, step):
         """..."""
@@ -199,9 +336,17 @@ class TopologicalAnalysis:
         result = self._dispatcher.dispatch(step, self.__steps__[step],)
         return result
 
+    def get_h5group(self, step):
+        """..."""
+        return self._data_groups.get(step)
+
     def run(self, steps=None, *args, **kwargs):
         """Run the pipeline.
         """
+        if self._mode == "inspect":
+            raise RuntimeError("Cannot run a read-only pipeline."
+                               "You can use read-only mode to inspect the data that has already been computed.")
+
         LOG.warning("Dispatch from %s queue: %s", len(self.state.queue), self.state.queue)
         if steps:
             self.state = PipelineState(complete=self.state.complete,

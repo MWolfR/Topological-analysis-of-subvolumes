@@ -1,12 +1,12 @@
 """
-An algorithm to shuffle with.
+An analysis to run ...
 """
 from pathlib import Path
 import importlib
 
-
-class DoesNotShuffle(TypeError):
+class DoesNotAnalyze(TypeError):
     pass
+
 
 def import_module(from_path):
     """..."""
@@ -22,20 +22,20 @@ def import_module(from_path):
 
     spec.loader.exec_module(module)
 
-    if not hasattr(module, "shuffle"):
-        raise DoesNotShuffle(module)
+    if not hasattr(module, "analyze"):
+        raise DoesNotShuffle(module.__qualname__)
 
     return module
 
 
-class Algorithm:
+class Analysis:
     """..."""
     def __init__(self, name, source, args=None, kwargs=None):
         """Define an algorithm with its name, source code, and the args and kwargs
         needed to call it's `.shuffle` method
         """
         self._name = name
-        self._shuffle = self.load_method(source)
+        self._analyze = self.load_method(source)
         self._args = args or tuple()
         self._kwargs = kwargs or {}
 
@@ -47,38 +47,47 @@ class Algorithm:
     def load_method(self, source):
         """..."""
         try:
-           shuffle = source.shuffle
+           analyze = source.analyze
         except AttributeError:
             pass
         else:
             self._module = source
-            return self._module.shuffle
+            return self._module.analyze
 
         if callable(source):
             #TODO: inspect source
             return source
 
         self._module = import_module(from_path=source)
-        return self._module.shuffle
+        return self._module.analyze
 
-    def shuffle(self, adjacency, node_properties=None, log_info=None):
+    def analyze(self, adjacency, node_properties=None, log_info=None):
+        """
+        adjacency : A scipy.sparse matrix
+        node_properties : A pandas.DataFrame<node-property -> value>
+        """
         """..."""
-        try:
-            matrix = adjacency.matrix
-        except AttributeError:
-            pass
+        def wake_up_lazy(matrix):
+            try:
+                matrix = matrix.matrix
+            except AttributeError:
+                pass
+            return matrix
 
-        if node_properties is not None:
-            assert node_properties.shape[0] == matrix.shape[0]
+        matrix = wake_up_lazy(adjacency)
+        N, M =  matrix.shape
 
-        return self._shuffle(matrix, node_properties,
-                             *self._args, **self._kwargs)
+        assert N == M, (N, M)
+
+        assert node_properties is None or node_properties.shape[0] == N, (node_properties, N)
+
+        return self._analyze(matrix, node_properties, *self.args, **self.kwargs)
+
 
     @staticmethod
     def from_config(description):
         """Define an algorithm using a description provided in a
         topology analysis config.
         """
-        print("description from config: ", description)
-        return Algorithm(description["name"], description["source"],
-                         description["args"], description["kwargs"])
+        return Analysis(description["name"], description["source"],
+                        description["args"], description["kwargs"])
