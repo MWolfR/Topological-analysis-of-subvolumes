@@ -1,0 +1,82 @@
+{
+  "paths": {
+    "circuit": {
+        "root": "/gpfs/bbp.cscs.ch/project/proj83/circuits",
+        "files": {
+            "Bio_M": "Bio_M/20200805/CircuitConfig_TC_WM"
+        }
+    },
+    "steps": {
+      "root": "/gpfs/bbp.cscs.ch/project/proj83/analyses/topological-analysis-subvolumes/topological_sampling.h5",
+      "groups": {
+        "define-subtargets": "subtargets",
+        "extract-neurons": "neurons",
+        "evaluate-subtargets": "subtarget_quality",
+        "extract-connectivity": "con_mats/original",
+        "randomize-connectivity": "con_mats/randomized",
+        "analyze-connectivity": "analysis"
+      }
+    }
+  },
+  "parameters": {
+    "define-subtargets": {
+      "radius": 230.0,
+      "base_target": "Mosaic",
+      "format": "wide"
+    },
+    "extract-neurons": {
+      "properties": [
+        "x",
+        "y",
+        "z",
+        "synapse_class",
+        "layer",
+        "mtype"
+      ]
+    },
+    "evaluate-subtargerts": {
+      "metrics": [
+        "orthogonality",
+        "neuron_counts",
+        "target_composition"
+      ]
+    },
+    "extract-connectivity": {
+      "connectomes": [
+        [
+          "local"
+        ]
+      ]
+    },
+  "randomize-connectivity": {
+      "algorithms": {
+        "erin":{
+          "source": "/gpfs/bbp.cscs.ch/project/proj83/home/sood/analyses/manuscript/topological-analysis-subvolumes/topological-analysis-of-subvolumes/randomization/library/rewire.py",
+          "kwargs": {"invariant_degree": "IN"},
+          "name": "connections-rewired-controlling-in-degree"
+        },
+        "erout":{
+          "source": "/gpfs/bbp.cscs.ch/project/proj83/home/sood/analyses/manuscript/topological-analysis-subvolumes/topological-analysis-of-subvolumes/randomization/library/rewire.py",
+          "kwargs": {"invariant_degree": "OUT"},
+          "name": "connections-rewired-controlling-out-degree"
+        },
+       "erdos_renyi": {
+          "source": "/gpfs/bbp.cscs.ch/project/proj83/home/sood/analyses/manuscript/topological-analysis-subvolumes/topologists_connectome_analysis/randomization/ER_shuffle.py",
+          "method":  "ER_shuffle",
+          "kwargs": {},
+          "name": "erdos-renyi"
+       }
+      }
+   },
+  "analyze-connectivity": {
+      "analyses": {
+        "simplex_counts": {
+          "source": "/gpfs/bbp.cscs.ch/project/proj83/home/sood/analyses/manuscript/topological-analysis-subvolumes/topologists_connectome_analysis/analysis/simplex_counts.py",
+          "args": [],
+          "kwargs": {},
+          "name": "simplex-counts"
+        }
+      }
+    }
+  }
+}
