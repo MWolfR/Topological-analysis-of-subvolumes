@@ -3,7 +3,7 @@ from types import ModuleType
 from importlib import import_module
 from pathlib import Path
 
-from ..utils import load_module_from_path as load_module
+from ..plugins import load_module_from_path as load_module
 from .runnable import Runnable
 
 
