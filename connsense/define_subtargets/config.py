@@ -20,8 +20,17 @@ class SubtargetsConfig:
     """Define and load subtargets in a circuit's flatmap."""
 
     @staticmethod
-    def read_json(path, reader):
-        """..."""
+    def read_json(from_object, reader):
+        """
+        Read JSON from an object, using a reader.
+        Notice that `from_object` may already be a dict.
+        This makes `SubtargetsConfig` definition makes more flezible,
+        allowing us to initialize with a dict that may have been read by
+        an config interpreter upstream in the stream.
+        """
+        if isinstance(path, Mapping):
+            return path
+
         try:
             path = Path(path)
         except TypeError:
