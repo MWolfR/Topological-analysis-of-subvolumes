@@ -22,7 +22,7 @@ def run(config, *args, dry_run=False, **kwargs):
     if STEP not in paths:
         raise RuntimeError("No connection matrices in config!")
 
-    config = config["parameters"].get("extract_connectivity", {})
+    config = config["parameters"].get("extract-connectivity", {})
 
     circuits = paths["circuit"]
     path_targets = paths["define-subtargets"]

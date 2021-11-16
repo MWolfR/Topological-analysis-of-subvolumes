@@ -142,7 +142,8 @@ def define(config, sample=None, fmt=None):
     sample : A float less than 1 or an int to sample from configured cells.
     fmt : Format long  or wide of the output dataframe.
     """
-    config = SubtargetsConfig(config)
+    if not isinstance(config, SubtargetsConfig):
+        config = SubtargetsConfig(config)
 
     fmt = fmt or "wide"
     assert fmt in ("wide", "long")

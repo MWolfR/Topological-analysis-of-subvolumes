@@ -286,14 +286,15 @@ class TopologicalAnalysis:
         return OrderedDict([(step, to_take) for step, to_take in complete.sequence_of_steps
                             if step in configured_steps])
 
-    @classmethod
-    def read(cls, config, raw=False):
+    def read(self, config, raw=False):
         """..."""
         try:
             path = Path(config)
         except TypeError:
             assert isinstance(config, Mapping)
             return config
+
+        self._path_config = config
         return read_config.read(path, raw=raw)
 
     @classmethod
@@ -356,7 +357,7 @@ class TopologicalAnalysis:
             step = self.state.queue.pop(0)
             LOG.warning("Dispatch pipeline step %s", step)
 
-            result = self.__steps__[step].run(self._config, *args, **kwargs)
+            result = self.__steps__[step].run(self._path_config, *args, **kwargs)
             LOG.warning("DONE pipeline step %s: %s", step, result)
             self.state.complete[step] = result
 

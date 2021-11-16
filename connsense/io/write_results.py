@@ -1,6 +1,8 @@
 """Write results of computations."""
 
 import os
+from pathlib import Path
+
 import io
 
 import h5py
@@ -117,13 +119,15 @@ def read(path, for_step):
     return pd.read_hdf(path_hdf_store, key=group_identifier)
 
 
-def read_subtargets(path):
+def read_subtargets(from_object):
     """..."""
     try:
+        path = Path(from_object)
+    except TypeError:
         root, group = path
-    except KeyError:
-        root = path
-        group = "define-subtargets"
+    else:
+        root = path; group = "subtargets"
+
     return read((root, group), for_step="define-subtargets")
 
 
@@ -131,9 +135,14 @@ def read_node_properties(path):
     """
     TODO: allow flat_x, flat_y in index.
     """
-    root, group = path
+    try:
+        path = Path(from_object)
+    except TypeError:
+        root, group = path
+    else:
+        root = path; group = "neurons"
 
-    return (read((root, group), "neurons")
+    return (read((root, group), "extract-neurons")
             .droplevel(["flat_x", "flat_y"])
             .reset_index()
             .set_index(["circuit", "subtarget"]))

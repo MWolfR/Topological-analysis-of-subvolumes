@@ -31,11 +31,10 @@ class SubtargetsConfig:
         if isinstance(from_object, Mapping):
             return from_object
 
-        path = from_object
         try:
-            path = Path(path)
+            path = Path(from_object)
         except TypeError:
-            return path
+            return from_object
 
         reader = reader or read_config
         config = reader.read(path)
@@ -48,7 +47,7 @@ class SubtargetsConfig:
         """
 
         config = self.read_json(config, reader)
-        assert isinstance(config, Mapping)
+        assert isinstance(config, Mapping), type(config)
 
         self._config = config
         self._label = label or "define-subtargets"
