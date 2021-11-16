@@ -124,21 +124,21 @@ def read_subtargets(from_object):
     try:
         path = Path(from_object)
     except TypeError:
-        root, group = path
+        root, group = from_object
     else:
         root = path; group = "subtargets"
 
     return read((root, group), for_step="define-subtargets")
 
 
-def read_node_properties(path):
+def read_node_properties(from_object):
     """
     TODO: allow flat_x, flat_y in index.
     """
     try:
         path = Path(from_object)
     except TypeError:
-        root, group = path
+        root, group = from_object
     else:
         root = path; group = "neurons"
 

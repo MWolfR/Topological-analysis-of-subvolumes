@@ -64,7 +64,7 @@ def randomize_table_of_contents(toc, using_neuron_properties,
                             f"({at_index}/ {n_algos}) "
                             f"matrix {r.idx} / {batch.shape[0]}")
 
-                return algorithm.shuffle(r.matrix, get_neurons(r), log_info)
+                return algorithm.apply(r.matrix, get_neurons(r), log_info)
 
             return (batch.assign(idx=range(batch.shape[0])).apply(shuffle_row, axis=1)
                     .rename("matrix"))

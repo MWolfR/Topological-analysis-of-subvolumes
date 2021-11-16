@@ -152,7 +152,7 @@ class SingleMethodAlgorithmFromSource(Algorithm):
         try:
             matrix = adjacency.matrix
         except AttributeError:
-            pass
+            matrix = adjacency
 
         if node_properties is not None:
             assert node_properties.shape[0] == matrix.shape[0]

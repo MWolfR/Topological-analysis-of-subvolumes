@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 import numpy as np
 import pandas as pd
 
-from randomization import Algorithm
+from .algorithm import SingleMethodAlgorithmFromSource
 
 
 from ..io.write_results import (read as read_results,
@@ -44,7 +44,8 @@ def get_algorithms(config):
 
     LOG.warning("configured algorithms %s", configured )
 
-    return [Algorithm.from_config(description) for _, description in configured.items()]
+    return [SingleMethodAlgorithmFromSource(name, description)
+            for name, description in configured.items()]
 
 
 def run(config, *args, output=None, batch_size=None, sample=None,  dry_run=None,
