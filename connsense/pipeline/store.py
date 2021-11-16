@@ -1,4 +1,5 @@
 """Interface to the HDFStore where the pipeline stores its data."""
+from collections import OrderedDict
 from lazy import lazy
 
 from ..io.write_results import (read_subtargets,

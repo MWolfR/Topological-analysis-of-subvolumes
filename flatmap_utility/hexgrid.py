@@ -11,7 +11,7 @@ import flatmap_utility as flattened
 
 XYZ = [Cell.X, Cell.Y, Cell.Z]
 
-from .io import logging
+from connsense.io import logging
 LOG = logging.get_logger("Flatmap Utility")
 
 
