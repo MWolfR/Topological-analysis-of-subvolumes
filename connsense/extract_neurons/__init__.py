@@ -1,5 +1,6 @@
 """Extract neuron properties."""
 from collections.abc import Mapping
+from pathlib import Path
 
 import pandas as pd
 import numpy
@@ -39,6 +40,7 @@ def extract(circuits, subtargets, params):
 
     # TODO: find a better way
     if "depth" in params:
+        LOG.info("Compute depths as neuron properties")
         depths = dict([(k, get_neuron_depths(v)) for k, v in circuits.items()])
         params.remove("depth")
         include_depth = True
@@ -53,7 +55,7 @@ def extract(circuits, subtargets, params):
         if include_depth:
             circ_depth = depths[index[0]]
             nrn_depths = circ_depth.loc[circ_depth.index.intersection(gids)]
-            props = pd.concat(props, nrn_depths, axis=1)  # Should fill missing gids with NaN
+            props = pd.concat([props, nrn_depths], axis=1)  # Should fill missing gids with NaN
         props.index = pd.MultiIndex.from_tuples([index + (gid,) for gid in gids],
                                                 names=["circuit", "subtarget",
                                                        "flat_x", "flat_y", "gid"])
@@ -76,7 +78,27 @@ def read(config):
     return config
 
 
-def run(config, *args, dry_run=False, **kwargs):
+def _resolve_hdf(location, paths):
+    """..."""
+    path, group = paths.get(STEP, default_hdf(STEP))
+    LOG.info("resolve HDF paths for %s, %s", location, (path, group))
+
+
+    if location:
+        try:
+            path = Path(location)
+        except TypeError as terror:
+            LOG.info("No path from %s, \n\t because %s", output, terror)
+            try:
+                hdf_path, hdf_group = location
+            except (TypeError, ValueError):
+                raise ValueError("output should be a tuple(hdf_path, hdf_group)"
+                                 "Found %s", output)
+
+    return (path,group)
+
+
+def run(config, output=None, dry_run=False, **kwargs):
     """Launch extraction of  neurons."""
     LOG.warning("Extract neurons for subtargets.")
 
@@ -112,7 +134,8 @@ def run(config, *args, dry_run=False, **kwargs):
         extracted = extract(circuits, targets, params)
         LOG.info("DONE, extracting %s", params)
 
-    output = paths.get(STEP, default_hdf(STEP))
+
+    output = _resolve_hdf(output, paths)
     LOG.info("WRITE neuron properties to archive %s\n\t under group %s",
              output[0], output[1])
     if dry_run:

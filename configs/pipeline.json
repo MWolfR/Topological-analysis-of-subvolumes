@@ -29,6 +29,7 @@
         "x",
         "y",
         "z",
+        "depth",
         "synapse_class",
         "layer",
         "mtype"
