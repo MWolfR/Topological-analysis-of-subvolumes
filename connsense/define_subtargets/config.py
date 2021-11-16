@@ -28,9 +28,10 @@ class SubtargetsConfig:
         allowing us to initialize with a dict that may have been read by
         an config interpreter upstream in the stream.
         """
-        if isinstance(path, Mapping):
-            return path
+        if isinstance(from_object, Mapping):
+            return from_object
 
+        path = from_object
         try:
             path = Path(path)
         except TypeError:

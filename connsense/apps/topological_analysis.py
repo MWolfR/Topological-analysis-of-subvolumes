@@ -11,7 +11,7 @@ LOG = logging.get_logger("Toplogical analysis of flatmapped subtargets.")
 def main(args):
     """..."""
     LOG.info("Initialize the topological analysis pipeline.")
-    topaz = pipeline.TopologicalAnalysis(args.config)
+    topaz = pipeline.TopologicalAnalysis(args.config, mode="run")
 
     LOG.info("Run the pipeline.")
     result = topaz.run(args.steps, sample=args.sample, output=args.output,
