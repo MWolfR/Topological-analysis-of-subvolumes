@@ -53,12 +53,12 @@
       "algorithms": {
         "erin":{
           "source": "/gpfs/bbp.cscs.ch/project/proj83/home/sood/analyses/manuscript/topological-analysis-subvolumes/topological-analysis-of-subvolumes/randomization/library/rewire.py",
-          "kwargs": {"invariant_degree": "IN"},
+          "kwargs": {"direction": "OUT"},
           "name": "connections-rewired-controlling-in-degree"
         },
         "erout":{
           "source": "/gpfs/bbp.cscs.ch/project/proj83/home/sood/analyses/manuscript/topological-analysis-subvolumes/topological-analysis-of-subvolumes/randomization/library/rewire.py",
-          "kwargs": {"invariant_degree": "OUT"},
+          "kwargs": {"direction": "OUT"},
           "name": "connections-rewired-controlling-out-degree"
         },
        "erdos_renyi": {

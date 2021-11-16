@@ -6,7 +6,25 @@ from pathlib import Path
 
 import pandas as pd
 
-from randomization import Algorithm
+def import_module(from_path, with_method=None):
+    """..."""
+    path = Path(from_path)
+
+    assert path.exists
+
+    assert path.suffix == ".py", f"Not a python file {path}!"
+
+    spec = importlib.util.spec_from_file_location(path.stem, path)
+
+    module = importlib.util.module_from_spec(spec)
+
+    spec.loader.exec_module(module)
+
+    if with_method:
+        if not hasattr(module, with_method):
+            raise TypeError(f"No method to {with_method}")
+        return (module, getattr(module, with_method))
+    return module
 
 
 def import_module_with_name(n):
@@ -82,73 +100,3 @@ def get_module(from_object, with_function=None):
 def collect_plugins_of_type(T, in_config):
     """..."""
     return {T(name, description) for name, description in items()}
-
-
-class AlgorithmFromSource(Algorithm):
-    """..."""
-    @staticmethod
-    def read_source(description):
-        """"..."""
-        return description["source"]
-
-    @staticmethod
-    def read_functions(description):
-        """..."""
-        return description["functions"]
-
-    @staticmethod
-    def load_args(functions):
-        """..."""
-        return [description.get("args", []) for description in functions]
-
-    @staticmethod
-    def load_kwargs(functions):
-        """..."""
-        return [description.get("kwargs", {}) for description in functions]
-
-    def load_application(self, source, functions):
-        """..."""
-        self._functions = [f["name"] for f in functions]
-        unique = set(self._functions)
-
-        module, methods = get_module(from_object=source, with_function=unique)
-        self._module = module
-        self._methods = methods
-
-        self._args = self.load_args(functions)
-        self._kwargs = self.load_kwargs(functions)
-        return
-
-    def __init__(self, name, description):
-        """..."""
-        self._name = name
-        source = self.read_source(description)
-        functions = self.read_functions(description)
-        self.load_application(source, functions)
-
-    @property
-    def name(self):
-        """..."""
-        return self._name
-
-    def apply(self, adjacency, node_properties):
-        """..."""
-        def apply_method_indexed(i):
-            """..."""
-            function = self._functions[i]
-            method = self._methods[function]
-            args = self._args[i]
-            kwargs = self._kwargs[i]
-            label = self._label(function, args, kwargs)
-            return (label, method(adjacency, node_properties, *args, **kwargs))
-
-        N = len(self._functions)
-        labels, matrices = zip(*[apply_method_indexed(i) for i in range(N)])
-
-        return pd.Series(matrices, name="matrix", index=pd.Index(labels, names="algorithm"))
-
-
-def get_algorithms(in_config):
-    """..."""
-    algorithms = in_config["algorithms"]
-    return collect_plugins_of_type(AlgorithmFromSource, in_config=algorithms)
