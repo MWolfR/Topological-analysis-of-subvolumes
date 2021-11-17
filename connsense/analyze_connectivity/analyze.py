@@ -22,29 +22,25 @@ def get_neuron_properties(hdf_path, hdf_group):
             .set_index(["circuit", "subtarget"]))
 
 
-def analyze_table_of_contents(toc_original, toc_randomized,
-                              using_neuron_properties, applying_analyses,
-                              sample=None, with_batches_of_size=None, ncores=72):
+def analyze_table_of_contents(toc, using_neuron_properties,
+                              applying_analyses,
+                              with_batches_of_size=None,
+                              ncores=72):
 
     """..."""
-    LOG.info("Analyze connectivity: %s / %s", sample.shape[0], toc_original.shape[0])
+    LOG.info("Analyze connectivity: %s", toc.shape[0])
 
-    toc_orig = toc_original if sample is None else toc_original.loc[sample]
-    toc_orig = toc_orig.rename("original")
-    toc_rand = toc_randomized if sample is None else toc_randomized.loc[sample]
-    toc_rand = toc_rand.rename("randomized")
-
-    N = toc_orig.shape[0]
-
-    LOG.info("Analyze %s subtargets using  %s.", N, [a.name for a in applyi])
+    N = toc.shape[0]
 
     neurons = using_neuron_properties
     analyses = applying_analyses
-    batch_size = with_batches_of_size or int(N / (n-1)) + 1
+    LOG.info("Analyze %s subtargets using  %s.", N, [a.name for a in analyses])
 
-    toc = pd.DataFrame([toc_orig, toc_rand])
-    batched = toc.assign(batch=np.array(np.floor(np.arange(N) / batch_size),
-                                        dtype=int))
+    batch_size = with_batches_of_size or int(N / (ncores-1)) + 1
+
+    batched = (toc.to_frame().
+               assign(batch=np.array(np.floor(np.arange(N) / batch_size),
+                                     dtype=int)))
 
     n_analyses = len(analyses)
     n_batches = batched.batch.max() + 1
@@ -69,10 +65,10 @@ def analyze_table_of_contents(toc_original, toc_randomized,
                             f"({at_index}/ {n_analyses}) "
                             f"matrix {r.idx} / {batch.shape[0]}")
 
-                return analysis.analyze(r.original, r.randomized, get_neurons(r), log_info)
+                return analysis.apply(r.matrix, get_neurons(r), log_info)
 
             return (batch.assign(idx=range(batch.shape[0])).apply(analyze_row, axis=1)
-                    .rename("matrix"))
+                    .rename(analysis.quantity))
 
         analyzed = pd.concat([analyze(a, i) for i, a in enumerate(analyses)],
                              axis=0, keys=[a.name for a in analyses],

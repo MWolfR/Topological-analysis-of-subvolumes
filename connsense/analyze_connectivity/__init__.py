@@ -5,8 +5,6 @@ from collections.abc import Mapping
 from pathlib import Path
 from argparse import ArgumentParser
 
-from randomization import Algorithm
-
 
 import pandas as pd
 import numpy as np
@@ -22,6 +20,7 @@ from ..io import read_config
 from ..io import logging
 
 from ..randomize_connectivity.randomize import get_neuron_properties
+from .analysis import SingleMethodAnalysisFromSource
 from .analyze import analyze_table_of_contents
 
 STEP = "analyze-connectivity"
@@ -39,41 +38,45 @@ def read(config):
 
 def write(analyzed, to_path, format="table"):
     """..."""
-    is_matrix = analyzed.apply(lambda r: isinstance(r, (sparse.csc_matrix,
-                                                        sparse.csr_matrix,
-                                                        sparse.coo_matrix)))
-    matrices = analyzed[is_matrix]
-
-    is_dataframe = analyzed.apply(lambda r: isinstance(r, (pd.DataFrame,
-                                                           pd.Series)))
-    dataframes = analyzed[is_dataframe]
-
     hdf_path, hdf_group = to_path
-    return (write_dataframe(dataframes, to_path=(hdf_path, hdf_group), format=format),
-            write_toc_plus_payload(matrices, to_path(hdf_path, f"{hdf_group}/matrices")))
+    for i, g in analyzed.groupby("analysis"):
+        LOG.info("Write analysis %s to %s/%s", i, hdf_group, i)
+        write_dataframe(g, to_path=(hdf_path, f"{hdf_group}/{i}"),
+                        format=format)
+    return hdf_path
 
 def subset_subtargets(original, randomized, sample):
     """..."""
     if not sample:
         return (original, randomized)
 
+    all_matrices = pd.concat([original, randomized]).rename('matrix')
+
+    if not sample:
+        return all_matrices
+
     S = np.float(sample)
     if S > 1:
-        subset = original.sample(n=int(S))
+        subset = all_matrices.sample(n=int(S))
     elif S > 0:
-        subset = original.sample(n=S)
+        subset = all_matrices.sample(frac=S)
     else:
         raise ValueError(f"Illegal sample={sample}")
 
-    selection = subset.index
+    return subset
 
-    def get_one(algorithm, randmats):
-        """..."""
-        randmats = randmats.droplevel("algorithm")
-        return pd.concat([randmats.droplevel("algorithm").loc[selection]],
-                         keys=[algorithm], names=["algorithm"])
-    return (subset,
-            pd.concat([get_one(a, r) for a, r in randomized.groupby("algorithm")]))
+def get_analyses(config):
+    """..."""
+    all_parameters = config["parameters"]
+
+    analyze_params = all_parameters[STEP]
+
+    configured = analyze_params["analyses"]
+
+    LOG.warning("configured analyses %s", configured )
+
+    return [SingleMethodAnalysisFromSource(name, description)
+            for name, description in configured.items()]
 
 
 def run(config, *args, output=None, batch_size=None, sample=None,  dry_run=None,
@@ -110,7 +113,9 @@ def run(config, *args, output=None, batch_size=None, sample=None,  dry_run=None,
     if dry_run:
         LOG.info("TEST pipeline plumbing")
     else:
-        toc_orig = read_toc_plus_payload((hdf_path, hdf_group), STEP).rename("matrix")
+        toc_orig = pd.concat([read_toc_plus_payload((hdf_path, hdf_group),
+                                                    STEP).rename("matrix")],
+                              keys=["original"], names=["algorithm"])
         LOG.info("Done loading  %s table of contents of original connectivity matrices",
                  toc_orig.shape)
 
@@ -129,14 +134,12 @@ def run(config, *args, output=None, batch_size=None, sample=None,  dry_run=None,
         LOG.info("TEST pipeline plumbing")
     else:
         parameters = config["parameters"].get("analyze_connectivity", {})
-        analyses = [Analysis.from_config(description)
-                    for _, description in parameters[STEP].items()]
+        analyses = get_analyses(config)
 
-        toc_orig_dispatch, toc_rand_dispatch = subset_subtargets(toc_orig, toc_rand, sample)
-        analyzed = analyze_table_of_contents(toc_orig_dispatch, toc_rand_dispatch, neurons,
-                                             analyses, sample,
+        toc_dispatch = subset_subtargets(toc_orig, toc_rand, sample)
+        analyzed = analyze_table_of_contents(toc_dispatch, neurons, analyses,
                                              batch_size)
-        LOG.info("Done, analyzing %s matrices.", sample.shape[0])
+        LOG.info("Done, analyzing %s matrices.", analyzed.shape[0])
 
 
     hdf_path, hdf_group = paths.get(STEP, default_hdf(STEP))
@@ -149,9 +152,13 @@ def run(config, *args, output=None, batch_size=None, sample=None,  dry_run=None,
     if dry_run:
         LOG.info("TEST pipeline plumbing")
     else:
-        output = write(analyzed, to_path=output, format="table")
-        LOG.info("Done writing %s randomized matrices: to %s", analyzed.shape, output)
-
+        for i, g in analyzed.groupby("analysis"):
+            LOG.info("Write analysis %s to %s/%s", i, hdf_group, i)
+            write_dataframe(g, to_path=(hdf_path, f"{hdf_group}/{i}"),
+                            format="table")
+        output = hdf_path
+        #output = write(analyzed, to_path=output, format="table")
+        LOG.info("Done writing %s analyzed matrices: to %s", analyzed.shape, output)
 
     LOG.warning("DONE analyzing: %s", config)
     return f"Result saved {output}"

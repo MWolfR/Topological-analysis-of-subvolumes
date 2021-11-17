@@ -114,6 +114,7 @@ class SingleMethodAlgorithmFromSource(Algorithm):
     def __init__(self, name, description):
         """..."""
         self._name = name
+        self._description = description
         self._source = self.read_source(description)
         self._args = self.read_args(description)
         self._kwargs = self.read_kwargs(description)

@@ -72,10 +72,11 @@
   "analyze-connectivity": {
       "analyses": {
         "simplex_counts": {
-          "source": "/gpfs/bbp.cscs.ch/project/proj83/home/sood/analyses/manuscript/topological-analysis-subvolumes/topologists_connectome_analysis/analysis/simplex_counts.py",
+          "source": "/gpfs/bbp.cscs.ch/project/proj83/home/sood/analyses/manuscript/topological-analysis-subvolumes/topologists_connectome_analysis/analysis/topology/simplex_counts.py",
           "args": [],
           "kwargs": {},
-          "name": "simplex-counts"
+          "method": "simplex_counts",
+          "output": "vector"
         }
       }
     }
