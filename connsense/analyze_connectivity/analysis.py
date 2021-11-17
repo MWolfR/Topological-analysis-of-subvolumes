@@ -99,7 +99,6 @@ class SingleMethodAnalysisFromSource:
         self._module = module
         return method
 
-
     def apply(self, adjacency, node_properties=None, log_info=None):
         """..."""
         try:

@@ -47,9 +47,6 @@ def write(analyzed, to_path, format="table"):
 
 def subset_subtargets(original, randomized, sample):
     """..."""
-    if not sample:
-        return (original, randomized)
-
     all_matrices = pd.concat([original, randomized]).rename('matrix')
 
     if not sample:
@@ -155,7 +152,7 @@ def run(config, *args, output=None, batch_size=None, sample=None,  dry_run=None,
         for i, g in analyzed.groupby("analysis"):
             LOG.info("Write analysis %s to %s/%s", i, hdf_group, i)
             write_dataframe(g, to_path=(hdf_path, f"{hdf_group}/{i}"),
-                            format="table")
+                            format=None)
         output = hdf_path
         #output = write(analyzed, to_path=output, format="table")
         LOG.info("Done writing %s analyzed matrices: to %s", analyzed.shape, output)

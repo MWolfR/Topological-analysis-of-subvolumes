@@ -68,13 +68,14 @@ def analyze_table_of_contents(toc, using_neuron_properties,
                 return analysis.apply(r.matrix, get_neurons(r), log_info)
 
             return (batch.assign(idx=range(batch.shape[0])).apply(analyze_row, axis=1)
-                    .rename(analysis.quantity))
+                    .rename("value"))
+                    #.rename(analysis.quantity))
 
         analyzed = pd.concat([analyze(a, i) for i, a in enumerate(analyses)],
                              axis=0, keys=[a.name for a in analyses],
                              names=["analysis"])
 
-        LOG.info("DONE batch %s / %s with %s targets, columns %s: randomized to shape %s",
+        LOG.info("DONE batch %s / %s with %s targets, columns %s: analyzed to shape %s",
                  label, n_batches, batch.shape[0], batch.columns, analyzed.shape)
 
         bowl[label] = analyzed

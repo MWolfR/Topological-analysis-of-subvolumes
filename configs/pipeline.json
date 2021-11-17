@@ -71,6 +71,13 @@
    },
   "analyze-connectivity": {
       "analyses": {
+        "edge_count": {
+          "source": "/gpfs/bbp.cscs.ch/project/proj83/home/sood/analyses/manuscript/topological-analysis-subvolumes/topologists_connectome_analysis/analysis/topology/simplex_counts.py",
+          "args": [],
+          "kwargs": {},
+          "method": "edge_counts",
+          "output": "scalar"
+        },
         "simplex_counts": {
           "source": "/gpfs/bbp.cscs.ch/project/proj83/home/sood/analyses/manuscript/topological-analysis-subvolumes/topologists_connectome_analysis/analysis/topology/simplex_counts.py",
           "args": [],
