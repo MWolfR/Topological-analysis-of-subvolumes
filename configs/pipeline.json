@@ -61,11 +61,11 @@
           "kwargs": {"direction": "OUT"},
           "name": "connections-rewired-controlling-out-degree"
         },
-       "erdos_renyi": {
+       "ER_shuffle": {
           "source": "/gpfs/bbp.cscs.ch/project/proj83/home/sood/analyses/manuscript/topological-analysis-subvolumes/topologists_connectome_analysis/randomization/ER_shuffle.py",
           "method":  "ER_shuffle",
           "kwargs": {},
-          "name": "erdos-renyi"
+          "name": "ER_shuffle"
        }
       }
    },
@@ -83,7 +83,22 @@
           "args": [],
           "kwargs": {},
           "method": "simplex_counts",
-          "output": "vector"
+          "output": "pandas.Series"
+        },
+
+        "betti_counts": {
+          "source": "/gpfs/bbp.cscs.ch/project/proj83/home/sood/analyses/manuscript/topological-analysis-subvolumes/topologists_connectome_analysis/analysis/topology/betti_counts.py",
+          "args": [],
+          "kwargs": {},
+          "method": "betti_counts",
+          "output": "pandas.DataFrame"
+        },
+        "edge_counts_by_synapse_type": {
+          "source": "/gpfs/bbp.cscs.ch/project/proj83/home/sood/analyses/manuscript/topological-analysis-subvolumes/topological-analysis-of-subvolumes/analysis/library/counts.py",
+          "args": [],
+          "kwargs": {},
+          "method": "count_edges_by_synapse_class",
+          "output": "pandas.Series"
         }
       }
     }

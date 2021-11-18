@@ -67,16 +67,15 @@ def analyze_table_of_contents(toc, using_neuron_properties,
 
                 return analysis.apply(r.matrix, get_neurons(r), log_info)
 
-            return (batch.assign(idx=range(batch.shape[0])).apply(analyze_row, axis=1)
-                    .rename("value"))
-                    #.rename(analysis.quantity))
+            return batch.assign(idx=range(batch.shape[0])).apply(analyze_row, axis=1)
 
-        analyzed = pd.concat([analyze(a, i) for i, a in enumerate(analyses)],
-                             axis=0, keys=[a.name for a in analyses],
-                             names=["analysis"])
+        analyzed = {a.name: analyze(a, i) for i , a in enumerate(analyses)}
+        #analyzed = pd.concat([analyze(a, i) for i, a in enumerate(analyses)],
+                             #axis=0, keys=[a.name for a in analyses],
+                             #names=["analysis"])
 
         LOG.info("DONE batch %s / %s with %s targets, columns %s: analyzed to shape %s",
-                 label, n_batches, batch.shape[0], batch.columns, analyzed.shape)
+                 label, n_batches, batch.shape[0], batch.columns, len(analyzed))
 
         bowl[label] = analyzed
         return analyzed
@@ -97,7 +96,9 @@ def analyze_table_of_contents(toc, using_neuron_properties,
     for p in processes:
         p.join()
 
-    result = pd.concat([analyzed for _, analyzed in bowl.items()], axis=0)
+    #result = pd.concat([analyzed for _, analyzed in bowl.items()], axis=0)
+    result = {a.name: pd.concat([chunk[a.name] for chunk in bowl.values()])
+              for a in analyses}
 
     LOG.info("DONE analyzing %s subtargets using  %s.", N, [a.name for a in analyses])
 

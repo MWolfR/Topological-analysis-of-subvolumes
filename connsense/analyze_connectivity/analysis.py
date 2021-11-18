@@ -2,6 +2,10 @@
 from ..plugins import import_module
 
 
+from ..io.utils import widen_by_index
+from ..io.logging import get_logger
+
+LOG = get_logger("Topology Pipeline Analysis", "INFO")
 
 def get_analyses(in_config):
     """..."""
@@ -55,6 +59,14 @@ class SingleMethodAnalysisFromSource:
         """..."""
         return description["output"]
 
+    @staticmethod
+    def read_collection(description):
+        """..."""
+        policy = description.get("collect", None)
+        if not policy:
+            return None
+        return policy
+
     def __init__(self, name, description):
         """..."""
         self._name = name
@@ -65,6 +77,7 @@ class SingleMethodAnalysisFromSource:
         self._method = self.read_method(description)
         self._output_type = self.read_output_type(description)
         self._analysis = self.load(description)
+        self._collection_policy = self.read_collection(description)
 
     @property
     def name(self):
@@ -111,3 +124,11 @@ class SingleMethodAnalysisFromSource:
 
         return self._analysis(matrix, node_properties,
                               *self._args, **self._kwargs)
+
+
+    @staticmethod
+    def collect(data):
+        """collect data...
+        TODO: We could have the scientist provide a collect method.
+        """
+        return data

@@ -36,14 +36,16 @@ def read(config):
         return config
     return  read_config.read(path)
 
-def write(analyzed, to_path, format="table"):
+def write(analysis, data, to_path):
     """..."""
     hdf_path, hdf_group = to_path
-    for i, g in analyzed.groupby("analysis"):
-        LOG.info("Write analysis %s to %s/%s", i, hdf_group, i)
-        write_dataframe(g, to_path=(hdf_path, f"{hdf_group}/{i}"),
-                        format=format)
-    return hdf_path
+    hdf_group += f"/{analysis.name}"
+
+    LOG.info("Write analysis size %s to %s/%s",
+             data.shape, hdf_group, analysis.name)
+
+    return write_dataframe(data, to_path=(hdf_path, hdf_group),
+                           format=None)
 
 def subset_subtargets(original, randomized, sample):
     """..."""
@@ -130,13 +132,13 @@ def run(config, *args, output=None, batch_size=None, sample=None,  dry_run=None,
     if dry_run:
         LOG.info("TEST pipeline plumbing")
     else:
-        parameters = config["parameters"].get("analyze_connectivity", {})
         analyses = get_analyses(config)
+        lookup_analysis = {a.name: a for a in analyses}
 
         toc_dispatch = subset_subtargets(toc_orig, toc_rand, sample)
         analyzed = analyze_table_of_contents(toc_dispatch, neurons, analyses,
                                              batch_size)
-        LOG.info("Done, analyzing %s matrices.", analyzed.shape[0])
+        LOG.info("Done, analyzing %s matrices.", len(analyzed))
 
 
     hdf_path, hdf_group = paths.get(STEP, default_hdf(STEP))
@@ -149,13 +151,11 @@ def run(config, *args, output=None, batch_size=None, sample=None,  dry_run=None,
     if dry_run:
         LOG.info("TEST pipeline plumbing")
     else:
-        for i, g in analyzed.groupby("analysis"):
-            LOG.info("Write analysis %s to %s/%s", i, hdf_group, i)
-            write_dataframe(g, to_path=(hdf_path, f"{hdf_group}/{i}"),
-                            format=None)
+        for a, data in analyzed.items():
+            analysis = lookup_analysis[a]
+            write(analysis, data, to_path=(hdf_path, hdf_group))
         output = hdf_path
-        #output = write(analyzed, to_path=output, format="table")
-        LOG.info("Done writing %s analyzed matrices: to %s", analyzed.shape, output)
+        LOG.info("Done writing %s analyzed matrices: to %s", len(analyzed), output)
 
     LOG.warning("DONE analyzing: %s", config)
     return f"Result saved {output}"

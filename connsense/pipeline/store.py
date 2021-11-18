@@ -78,8 +78,8 @@ class HDFStore:
         if self.nodes is None:
             return None
 
-        level = ["circuit", "subtarget"]
-        query = [circuit, subtarget]
+        level = ("circuit", "subtarget")
+        query = (circuit, subtarget)
         return self.nodes.xs(query, level=level)
 
     def get_adjacency(self, circuit, subtarget, connectome):
