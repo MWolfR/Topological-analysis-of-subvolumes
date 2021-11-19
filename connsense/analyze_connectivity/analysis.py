@@ -85,6 +85,10 @@ class SingleMethodAnalysisFromSource:
         return self._name
 
     @property
+    def description(self):
+        return self._description
+
+    @property
     def quantity(self):
         """To name the column in a dataframe, or an item in a series."""
         return self._description.get("quantity",
@@ -114,6 +118,8 @@ class SingleMethodAnalysisFromSource:
 
     def apply(self, adjacency, node_properties=None, log_info=None):
         """..."""
+        if log_info:
+            LOG.info("APPLY %s", log_info)
         try:
             matrix = adjacency.matrix
         except AttributeError:
@@ -122,8 +128,13 @@ class SingleMethodAnalysisFromSource:
         if node_properties is not None:
             assert node_properties.shape[0] == matrix.shape[0]
 
-        return self._analysis(matrix, node_properties,
+        result = self._analysis(matrix, node_properties,
                               *self._args, **self._kwargs)
+
+        if log_info:
+            LOG.info("Done %s", log_info)
+
+        return result
 
 
     @staticmethod

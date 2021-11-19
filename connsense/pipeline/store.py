@@ -2,6 +2,8 @@
 from collections import OrderedDict
 from lazy import lazy
 
+import pandas as pd
+
 from ..io.write_results import (read_subtargets,
                                 read_node_properties,
                                 read_toc_plus_payload)
@@ -58,22 +60,26 @@ class HDFStore:
     @lazy
     def analyses(self):
         """A TOC for analyses results available in the HDF store."""
-        raise NotImplementedError
+        try:
+            return self._read_matrix_toc("analyze-connectivity")
+        except (KeyError, FileNotFoundError):
+            return None
 
     @lazy
     def circuits(self):
         """Available circuits for which subtargets have been computed."""
         return self.columns.index.get_level_values("circuit").unique().to_list()
 
-    def get_subtargets(self, circuit):
+    def pour_subtargets(self, circuit):
         """All subtargets defined for a circuit."""
         if self.columns is None:
             return None
 
         columns = self.columns.xs(circuit, level="circuit")
-        return columns.index.get_level_values("subtarget").unique().to_list()
+        return pd.Series(columns.index.get_level_values("subtarget").unique().to_list(),
+                         name="subtarget")
 
-    def get_nodes(self, circuit, subtarget):
+    def pour_nodes(self, circuit, subtarget):
         """..."""
         if self.nodes is None:
             return None
@@ -82,7 +88,7 @@ class HDFStore:
         query = (circuit, subtarget)
         return self.nodes.xs(query, level=level)
 
-    def get_adjacency(self, circuit, subtarget, connectome):
+    def pour_adjacency(self, circuit, subtarget, connectome):
         """..."""
         if self.adjacency is None:
             return None
@@ -99,7 +105,7 @@ class HDFStore:
             return adj.iloc[0].matrix
         return adj
 
-    def get_randomizations(self, circuit, subtarget, connectome, algorithms):
+    def pour_randomizations(self, circuit, subtarget, connectome, algorithms):
         """..."""
         if self.randomizations is None:
             return None
@@ -116,9 +122,9 @@ class HDFStore:
         if not algorithms:
             return randomizations
 
-        return randmomizations.loc[algorithms]
+        return randomizations.loc[algorithms]
 
-    def get_data(self, circuit, subtarget, connectome=None, randomizations=None):
+    def pour_data(self, circuit, subtarget, connectome=None, randomizations=None):
         """Get available data for a subtarget."""
         args = (circuit, subtarget)
         return OrderedDict([("nodes", self.get_nodes(*args)),

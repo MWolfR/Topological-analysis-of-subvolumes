@@ -45,7 +45,8 @@ def write(analysis, data, to_path):
              data.shape, hdf_group, analysis.name)
 
     return write_dataframe(data, to_path=(hdf_path, hdf_group),
-                           format=None)
+                           format=None,
+                           metadata=analysis.description)
 
 def subset_subtargets(original, randomized, sample):
     """..."""

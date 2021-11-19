@@ -15,12 +15,14 @@ def default_hdf(step):
     return (os.path.join(os.curdir, "topological_analysis.h5"), step)
 
 
-def write(extracted, to_path, format=None):
+def write(extracted, to_path, format=None, metadata=None):
     """Expecting the path to output be that to a `*.h5` archive.
 
     extracted : A pandas DataFrame / Series
     path : a string or a tuple of strings
+    metadata : A dict whose key, values will be added to the HDF-groups' attributes
     """
+    metadata = metadata or {}
     try:
         path_hdf_store, group_identifier = to_path
     except TypeError:
@@ -30,6 +32,7 @@ def write(extracted, to_path, format=None):
 
     extracted.to_hdf(path_hdf_store, key=group_identifier,
                      mode="a", format=(format or "fixed"))
+
     return (path_hdf_store, group_identifier)
 
 
@@ -54,7 +57,8 @@ def read_sparse_matrix_payload(hdf_dset):
     return mat
 
 
-def write_toc_plus_payload(extracted, to_path, format=None):
+def write_toc_plus_payload(extracted, to_path, payload_type=None, format=None):
+    """..."""
     path_hdf_store, group_identifier = to_path
     group_identifier_toc = group_identifier + "/toc"
     group_identifier_mat = group_identifier + "/payload"

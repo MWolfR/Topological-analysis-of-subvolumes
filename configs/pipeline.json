@@ -58,7 +58,7 @@
         },
         "erout":{
           "source": "/gpfs/bbp.cscs.ch/project/proj83/home/sood/analyses/manuscript/topological-analysis-subvolumes/topological-analysis-of-subvolumes/randomization/library/rewire.py",
-          "kwargs": {"direction": "OUT"},
+          "kwargs": {"direction": "IN"},
           "name": "connections-rewired-controlling-out-degree"
         },
        "ER_shuffle": {
@@ -71,13 +71,6 @@
    },
   "analyze-connectivity": {
       "analyses": {
-        "edge_count": {
-          "source": "/gpfs/bbp.cscs.ch/project/proj83/home/sood/analyses/manuscript/topological-analysis-subvolumes/topologists_connectome_analysis/analysis/topology/simplex_counts.py",
-          "args": [],
-          "kwargs": {},
-          "method": "edge_counts",
-          "output": "scalar"
-        },
         "simplex_counts": {
           "source": "/gpfs/bbp.cscs.ch/project/proj83/home/sood/analyses/manuscript/topological-analysis-subvolumes/topologists_connectome_analysis/analysis/topology/simplex_counts.py",
           "args": [],
@@ -85,21 +78,6 @@
           "method": "simplex_counts",
           "output": "pandas.Series"
         },
-
-        "betti_counts": {
-          "source": "/gpfs/bbp.cscs.ch/project/proj83/home/sood/analyses/manuscript/topological-analysis-subvolumes/topologists_connectome_analysis/analysis/topology/betti_counts.py",
-          "args": [],
-          "kwargs": {},
-          "method": "betti_counts",
-          "output": "pandas.DataFrame"
-        },
-        "edge_counts_by_synapse_type": {
-          "source": "/gpfs/bbp.cscs.ch/project/proj83/home/sood/analyses/manuscript/topological-analysis-subvolumes/topological-analysis-of-subvolumes/analysis/library/counts.py",
-          "args": [],
-          "kwargs": {},
-          "method": "count_edges_by_synapse_class",
-          "output": "pandas.Series"
-        }
       }
     }
   }

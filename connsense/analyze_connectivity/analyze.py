@@ -22,6 +22,43 @@ def get_neuron_properties(hdf_path, hdf_group):
             .set_index(["circuit", "subtarget"]))
 
 
+def apply(analyses, to_batch, using_neurons,
+          n_batches=None, label=None, bowl=None):
+    """..."""
+    LOG.info("ANALYZE %s \t to batch %s / %s with %s targets and columns %s",
+             [a.name for a in analyses],
+             label, n_batches, to_batch.shape[0], to_batch.columns)
+
+    def get_neurons(row):
+        """..."""
+        index = dict(zip(to_batch.index.names, row.name))
+        return (using_neurons.loc[index["circuit"], index["subtarget"]]
+                .reset_index(drop=True))
+
+    n_analyses = len(analyses)
+    def apply(analysis, at_index):
+        """..."""
+        LOG.info("Apply analysis %s to batch %s", analysis.name, label)
+        def to_row(r):
+            """..."""
+            log_info = (f"Batch {label} Analysis {analysis.name}"
+                        f" ({at_index} / {n_analyses})"
+                        f" matrix {r.idx} / {to_batch.shape[0]}")
+            return analysis.apply(r.matrix, get_neurons(r), log_info)
+
+        n_batch = to_batch.shape[0]
+        return to_batch.assign(idx=range(n_batch)).apply(to_row, axis=1)
+
+    analyzed = {a.name: apply(a, i) for i, a in enumerate(analyses)}
+
+    LOG.info("DONE batch %s / %s with %s targets, columns %s: analyzed %s",
+             label, n_batches, batch.shape[0], batch.columns, len(analyzed))
+    if bowl:
+        assert label
+        bowl[label] = analyzed
+    return analyzed
+
+
 def analyze_table_of_contents(toc, using_neuron_properties,
                               applying_analyses,
                               with_batches_of_size=None,
